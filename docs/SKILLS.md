@@ -7,7 +7,8 @@ inferred about them and can dispute it. Admins can find people by skill and ask 
 publish an opt-in portfolio for employers.
 
 The member workspace is **`/clubpm/skills`** (sidebar Skills, or More → Skills on phones). It has My skills,
-Growth, Team coverage, Library, and admin-only Automation. The profile keeps a compact summary linking here;
+Growth, Team coverage, Career, Library, and admin-only Automation. **Career** (impact numbers, résumé bullets,
+target roles, sponsor and public sharing, intro requests, badges) is documented in [CAREERS.md](CAREERS.md). The profile keeps a compact summary linking here;
 the existing Admin → Skills tools remain available. The approved direction is documented in
 [the design proposal](designs/2026-10-16-skills-overhaul/README.md).
 
@@ -72,10 +73,11 @@ than introducing an unvalidated new proficiency scale. The source prompt is `ski
 ## Setup
 
 1. Apply the migration: `cd backend && npx prisma migrate deploy` (dev: `npm run db:migrate`).
-2. Seed the starter taxonomy: `npm run seed:skills`, the **Seed Backend** workflow with target `skills`, or Admin → Skills → Taxonomy → "Install about 130 starter skills". A run that finds no active skills installs them itself. It is idempotent and only adds. It is a curated set of about 130
-   skills for engineering teams (CAD, electronics, software, aerospace, manufacturing, soft skills) named after concepts
-   in ESCO, O*NET and SFIA, with `source` recording which. It is **not** an import of those standards and sets no
-   `externalId`; a full import can fill `externalId` later without changing slugs.
+2. Seed the starter taxonomy: `npm run seed:skills`, the **Seed Backend** workflow with target `skills`, or Admin → Skills → Taxonomy → "Install about 130 starter skills" (the list now holds about 145). A run that finds no active skills installs them itself. It is idempotent and only adds. It is a curated set of
+   skills for engineering teams (CAD, electronics, software, aerospace, manufacturing, soft skills, and the 2026
+   additions such as AI-assisted engineering, PyTorch, AWS, cybersecurity fundamentals and cross-functional
+   collaboration), with `source` recording
+   where each concept comes from. Alignment with the labor-market standard is done separately, through O*NET (below).
 3. Configure `.env` (see the Skills block in the root `.env.example`): `GEMINI_API_KEY`, and `SKILLS_MODEL` (or rely on
    `GEMINI_MODEL`). Any current Gemini model works: 1.x/2.0 models are sent the OpenAPI response schema automatically,
    2.5 models get a bounded thinking budget. The key is read on the server only. Admin → Skills → Overview lists anything
@@ -96,6 +98,16 @@ The workflow appears in the Actions menu once it is on the default branch. Unche
 future weekly runs; this does not cancel a run already in progress. Confirm the setup checks and schedule
 in **Admin → Skills → Overview**. The backend must be running at the scheduled time; GitHub only configures
 the existing backend cron.
+
+## O*NET alignment
+
+Club skills link to the U.S. Department of Labor's **O*NET 31.0** reference data (CC BY 4.0), loaded locally from
+`backend/data/onet/31.0/` with `npm run onet:load` or the Seed Backend target `onet`. Each skill can link to an O*NET
+software example (with employers' Hot Technology and In Demand flags), a skill, knowledge or work-style element, or a
+Detailed Work Activity. Exact name matches link automatically when a skill is created; 80 reviewed links ship with the
+seed and admins manage the rest. Links feed the skill drawer's O*NET section, Career pathways, the public tool counts
+and opportunity matching. They never change levels, confidence or the weekly analysis. Data, attribution and the
+upgrade steps are in [CAREERS.md](CAREERS.md#onet-data).
 
 ## Running it
 

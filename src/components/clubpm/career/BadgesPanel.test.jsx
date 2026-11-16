@@ -42,7 +42,7 @@ test('lists eligible, claimed, revoked and unconfirmed states with text labels',
   expect(within(item('Mentor')).getByText(/Claimed/)).toBeTruthy();
   expect(within(item('Builder')).getByText(/^\s*Revoked$/)).toBeTruthy();
   expect(within(item('Builder')).queryByRole('button')).toBeNull();
-  expect(within(item('Leader')).getByText(/Needs lead\/admin confirmation/)).toBeTruthy();
+  expect(within(item('Leader')).getByText(/Needs admin confirmation/)).toBeTruthy();
   expect(within(item('Shipper')).getByText(/2 of 5 needed/)).toBeTruthy();
 });
 

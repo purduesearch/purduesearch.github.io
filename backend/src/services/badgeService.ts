@@ -186,7 +186,7 @@ export function createBadgeService(d: BadgeServiceDeps) {
       throw new BadgeError("NOT_ELIGIBLE", `This badge needs ${a.threshold} or more; your current count is ${value ?? 0}.`);
     }
     if (!isConfirmedOk(a, value, await store.confirmations(memberId))) {
-      throw new BadgeError("NOT_ELIGIBLE", "A project lead or admin needs to confirm this count before you can claim the badge.");
+      throw new BadgeError("NOT_ELIGIBLE", "A club admin needs to confirm this count before you can claim the badge.");
     }
 
     const id = newId();

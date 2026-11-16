@@ -81,7 +81,7 @@ export function resultText(a: BadgeAchievement, value: number): string {
 
 export function criteriaNarrative(a: BadgeAchievement): string {
   const unit = a.threshold === 1 ? a.unitSingular : a.unitPlural;
-  const confirm = a.proof === "CONFIRMED" ? " A project lead or club admin confirmed the count before the badge could be claimed." : "";
+  const confirm = a.proof === "CONFIRMED" ? " A club admin confirmed the count before the badge could be claimed." : "";
   return `${a.description} Earned at ${a.threshold} or more ${unit}, counted by Constellation from club records.${confirm} The member chose to claim it.`;
 }
 

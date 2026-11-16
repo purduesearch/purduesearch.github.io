@@ -38,7 +38,7 @@ machine's temporary directory.
 | 21 | Badges backend [deep] | done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 222 checks across 4 files; /api/public/badges above publicRouter; jose 6.2.13. |
 | 22 | Badges frontend | done | this commit | build / test:ci / backend typecheck / backend test green | 13 UI tests; /badges/:id route; CSS v=36. |
 | 23 | Security and privacy review [deep, fresh] | done | this commit | build / test:ci / backend typecheck / backend test green | Fresh reviewer: 1 MAJOR + 5 MINOR fixed, 2 NIT recorded. |
-| 24 | Docs | todo | | | |
+| 24 | Docs | done | this commit | build / test:ci / backend typecheck / backend test green | docs/CAREERS.md, SKILLS.md O*NET section, course prose, AGENTS.md lines. |
 | 25 | Manual rollout (Henry) | todo | | | |
 
 Resume baseline (2026-11-15, Node v24.14.1, branch `feat/skills-careers` at `b8fdabcc`): green.
@@ -525,7 +525,28 @@ the gate from there on.
 - OPEN: there is no admin API or UI to invite, disable or revoke a `SponsorUser`/`SponsorOrg`; the plan has
   no phase for it. Phase 25 step 6 ("invite first sponsor users") currently means a direct database insert.
 
+### Phase 24 — Docs
+
+- Fresh agent `phase_24`: new `docs/CAREERS.md` (rules, what is where, O*NET with exact attribution, metric
+  table as built, proof levels, who sees what, sponsor runbook with a hand SQL insert, opportunity sources,
+  badges with key snippet, rollout checklist, known limits); `docs/SKILLS.md` O*NET section replaces the
+  "named after ESCO, O*NET and SFIA" passage (starter count about 145); course prose in
+  `constellation-101/content/skills-workspace.md` updated for pathways, settings, intros and badges.
+  No `.steps.json` or anchor id changed.
+- Controller: applied AGENTS.md lines (root General: Career/O*NET + sponsor auth/badges; root File
+  Structure: `src/pages/Public/`; api, services, prisma, slack AGENTS.md). Corrected badge copy that said a
+  "project lead or admin" confirms `team_led`: only admins can (`POST /api/admin/career/confirm`). Updated
+  BadgesPanel label, its test assertion, the claim error text and the credential criteria narrative.
+- Controller gate: root build passed; test:ci 692 passed; backend typecheck passed; backend tests 149 files passed.
+- OPEN: no admin career UI exists. O*NET links, metric toggles, claim review, `team_led` confirmation, demand
+  signals and opportunity sources are API-only, so Phase 25 step 2 ("Admin → Skills → O*NET → Apply curated
+  links") becomes `POST /api/admin/career/onet/apply-curated`. Claim review/confirmation without UI is the
+  main rollout gap.
+
 ## Follow-ups
+
+- Admin career UI (O*NET links, metric toggles, claim review, confirm, demand signals, opportunity sources)
+  and a member opportunity feed UI.
 
 - Intro re-request after decline: only PENDING blocks a repeat, so a sponsor can re-request right after a
   decline (within the 20 per 7 days budget). Add a cool-down after DECLINED.

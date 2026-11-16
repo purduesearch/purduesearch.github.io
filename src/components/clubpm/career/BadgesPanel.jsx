@@ -15,7 +15,7 @@ function stateOf(b) {
   return 'progress';
 }
 const STATE_LABEL = {
-  revoked: 'Revoked', claimed: 'Claimed', eligible: 'Ready to claim', confirm: 'Needs lead/admin confirmation', progress: 'In progress',
+  revoked: 'Revoked', claimed: 'Claimed', eligible: 'Ready to claim', confirm: 'Needs admin confirmation', progress: 'In progress',
 };
 
 function ClaimConfirm({ badge, busy, onConfirm, onCancel }) {
@@ -109,7 +109,7 @@ export default function BadgesPanel() {
           {st === 'revoked' && ` Revoked ${fmt(a.revokedAt)}.`}
         </p>
         {st === 'revoked' && a.revokedReason && <p className="pm-career-badge-meta">Your reason: {a.revokedReason}</p>}
-        {st === 'confirm' && <p className="pm-career-badge-meta">Your count meets the threshold. A project lead or admin needs to confirm it before you can claim.</p>}
+        {st === 'confirm' && <p className="pm-career-badge-meta">Your count meets the threshold. A club admin needs to confirm it before you can claim.</p>}
 
         {st === 'eligible' && confirming?.id !== b.id && <div className="pm-career-intro-actions">
           <button type="button" className="pm-career-btn" disabled={busy || !data.canIssue} onClick={() => setConfirming({ id: b.id, kind: 'claim' })}>Claim badge</button>
