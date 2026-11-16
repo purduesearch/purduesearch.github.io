@@ -29,8 +29,8 @@ machine's temporary directory.
 | 13a | Skill O*NET detail endpoint (split) | done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 75 route checks; GET /api/career/skills/:id/onet. |
 | 13 | Pathway + skill detail UI (13b) | done | this commit | build / backend typecheck / backend test / root test:ci green | 11 UI tests + drawer assertion; CSS v=33. |
 | 14 | Career settings + print route | done | this commit | build / backend typecheck / backend test / root test:ci green | 10 UI tests; route /clubpm/career/print; CSS v=34. |
-| 15 | Sponsor auth [deep] | done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 100 checks across 3 files; /api/sponsor above bare /api; cron 23 * * * *. |
-| 16 | Talent directory + intros [deep] | todo | | | |
+| 15 | Sponsor auth [deep] | done | cb8b7534 | build / backend typecheck / backend test green; root test:ci n/a | 100 checks across 3 files; /api/sponsor above bare /api; cron 23 * * * *. |
+| 16 | Talent directory + intros [deep] | done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 261 checks across 4 files; no registry lines. |
 | 17 | Public impact page | todo | | | |
 | 18 | Sponsor portal frontend | todo | | | |
 | 19 | Opportunity parsers + matching | todo | | | |
@@ -309,7 +309,38 @@ the gate from there on.
 - Deviations: ineligible sponsors get 401 everywhere (never 403). OPEN: the login rate limiter is
   per-process memory; with several API instances the limit applies per instance (recorded as follow-up).
 
+### Phase 16 — Talent directory + intros
+
+- An earlier agent started this phase and stopped before finishing, so its work was never committed. A
+  fresh agent on the strongest setting checked that work, kept the sound parts and finished the phase.
+  Created `services/talentDirectoryCore.ts` (`buildSponsorCard`/`buildPublicCard` by allow-list;
+  directory filters; alphabetical order, optional `sort=gradTerm`) and `services/introService.ts` (intro
+  create inside an advisory-lock transaction: 1 pending per sponsor-member pair, 20 per sponsor user per
+  7 days; lazy expiry on read; member accept/decline; accept email). Edited `api/sponsor.ts` (directory
+  and intros), `api/career.ts` (`GET /me/intros`, `POST /me/intros/:id`) and `sponsorAuthService.ts`
+  (`runSponsorMaintenance` also marks PENDING intros past `expiresAt` EXPIRED; never throws). Test counts:
+  core 60, intro 72, sponsor 43, career 86.
+- Cards carry only shareable bullets (RECORDS, CONFIRMED with a VERIFIED attestation, CLAIM VERIFIED),
+  certification name + provider, and badge (metric label + verify URL). There is no achievement name
+  field, so a badge shows its parent metric's label. Intro notifications use `CAREER_INTRO_REQUEST`
+  through `createNotification` + `slackText`. Sponsor name and org are escaped, and the sponsor's message
+  is never in the notification. Email subjects drop control characters.
+- If a member turns sharing off, every sponsor intro row (ACCEPTED rows included) shows "Member no longer
+  sharing", with no id and no email. Accepting returns 409 until the member shares again. Declining always
+  works.
+- The directory `tool` filter matches only skills the member has made public, plus bullet text and
+  certification names. That stops sponsors probing private skills. Skill names never appear on a card.
+- Extra: an in-memory throttle of 10 intro writes per minute per sponsor user, on top of the 7-day limit.
+- Controller gate: root build passed; backend typecheck passed; backend tests 142 files passed, 0 failed.
+  Root test:ci n/a (no `src/` changes).
+
 ## Follow-ups
+
+- Directory runs about 8 queries per shared member per request. Batch or cache if sharing members grow
+  large.
+- docs/CAREERS.md (Phase 24) must say: a sponsor keeps the accept email even if the member later turns
+  sharing off; the portal then hides that member.
+- Intro POST throttle (10/min) is per-process memory, same caveat as the login limiter.
 
 - Sponsor login rate limiter is per-process memory. If the API runs on several instances, move it to
   Postgres or Redis so the 5-per-hour limit is global.

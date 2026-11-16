@@ -285,8 +285,18 @@ export async function cleanupSponsorTokens(now: Date = new Date(), store?: Spons
   }
 }
 
-/** Hourly sponsor data maintenance. Phase 16 adds intro expiry here. Never throws. */
-export async function runSponsorMaintenance(now: Date = new Date()): Promise<{ tokensDeleted: number }> {
-  const tokensDeleted = await cleanupSponsorTokens(now);
-  return { tokensDeleted };
+/** Hourly sponsor data maintenance: stale login tokens, then PENDING intro requests past expiresAt → EXPIRED. Never throws. */
+export async function runSponsorMaintenance(
+  now: Date = new Date(),
+  deps: { tokens?: SponsorAuthStore; intros?: import("./introService.js").IntroStore } = {},
+): Promise<{ tokensDeleted: number; introsExpired: number }> {
+  const tokensDeleted = await cleanupSponsorTokens(now, deps.tokens);
+  let introsExpired = 0;
+  try {
+    const { expireIntroRequests } = await import("./introService.js");
+    introsExpired = await expireIntroRequests(now, deps.intros);
+  } catch (err) {
+    console.error("[sponsor] intro expiry failed:", err instanceof Error ? err.name : "error");
+  }
+  return { tokensDeleted, introsExpired };
 }

@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import type { AddressInfo } from "node:net";
 import { createSponsorRouter } from "./sponsor.js";
 import { LOGIN_TOKEN_TTL_MS, type SponsorAuthStore, type SponsorUserRow } from "../services/sponsorAuthService.js";
+import type { IntroRow, IntroStore } from "../services/introService.js";
 
 let passed = 0, failed = 0;
 function check(name: string, cond: boolean) { if (cond) passed++; else { failed++; console.error(`  FAIL ${name}`); } }
@@ -33,6 +34,33 @@ function makeStore(users: SponsorUserRow[]) {
   return { store, tokens };
 }
 
+/** Minimal intro store: m-ada shares, m-pat does not. */
+function makeIntroStore(users: SponsorUserRow[]) {
+  const people = [
+    { id: "m-ada", displayName: "Ada Lovelace", email: "ada@purdue.test", share: true },
+    { id: "m-pat", displayName: "Pat Private", email: "pat@purdue.test", share: false },
+  ];
+  const intros: IntroRow[] = [];
+  const contact = (p: typeof people[number]) => ({ id: p.id, displayName: p.displayName, email: p.email });
+  const store: IntroStore = {
+    sharedMemberIds: async () => people.filter(p => p.share).map(p => p.id),
+    sharedMember: async id => { const p = people.find(x => x.id === id && x.share); return p ? contact(p) : null; },
+    member: async id => { const p = people.find(x => x.id === id); return p ? contact(p) : null; },
+    cardSource: async id => {
+      const p = people.find(x => x.id === id);
+      return p ? { memberId: p.id, displayName: p.displayName, profile: null, targets: [], snapshots: [], attestations: [], bulletRows: [], certifications: [], badges: [] } : null;
+    },
+    disabledMetrics: async () => [],
+    createIntro: async row => { const r: IntroRow = { ...row, id: `i${intros.length + 1}`, status: "PENDING", respondedAt: null }; intros.push(r); return r; },
+    listForSponsor: async id => intros.filter(i => i.sponsorUserId === id),
+    listForMember: async id => intros.filter(i => i.memberId === id).map(i => ({ ...i, sponsor: users.find(u => u.id === i.sponsorUserId)! })),
+    find: async id => { const i = intros.find(x => x.id === id); return i ? { ...i, sponsor: users.find(u => u.id === i.sponsorUserId)! } : null; },
+    respond: async () => false,
+    expireDue: async () => 0,
+  };
+  return { store, intros };
+}
+
 const org = (over: Partial<SponsorUserRow["org"]> = {}) => ({ id: "o1", name: "Acme", active: true, accessUntil: null, ...over });
 
 async function main() {
@@ -50,10 +78,13 @@ async function main() {
   ];
   const h = makeStore(users);
   const sent: { to: string; subject: string; html: string }[] = [];
+  const intro = makeIntroStore(users);
+  const notes: unknown[] = [];
   let jobs: Promise<void>[] = [];
   const mk = (secret: string | null) => createSponsorRouter({
     store: h.store, mailer: async m => { sent.push(m); }, now: () => clock, secret, frontendUrl: FRONTEND,
     onBackground: j => { jobs.push(j); },
+    introStore: intro.store, notify: async n => { notes.push(n); }, introMailer: async () => { throw new Error("no intro mail from sponsor routes"); },
   });
   const app = express();
   app.use(express.json());
@@ -132,16 +163,38 @@ async function main() {
     check("/me after logout 401", (await call("GET", "/me", undefined, bearer)).status === 401);
     check("/logout without bearer 401", (await call("POST", "/logout")).status === 401);
 
+    // Directory + intros (fresh session after logout).
+    check("directory without bearer 401", (await call("GET", "/directory")).status === 401);
+    check("intros POST without bearer 401", (await call("POST", "/intros", { memberId: "m-ada", message: "hi" })).status === 401);
+    check("intros GET without bearer 401", (await call("GET", "/intros")).status === 401);
+    check("member-style token rejected", (await call("GET", "/directory", undefined, "member-token.sig")).status === 401);
+    await call("POST", "/login", { email: "ada@acme.com" }); await settle();
+    const s2 = await call("POST", "/session", { token: rawOf(sent[sent.length - 1].html) });
+    const b2 = s2.json?.token as string;
+    const dir = await call("GET", "/directory", undefined, b2);
+    check("directory lists shared members only", dir.status === 200 && dir.json.members.length === 1 && dir.json.members[0].memberId === "m-ada"
+      && dir.json.members[0].name === "Ada L." && !JSON.stringify(dir.json).includes("@purdue.test"));
+    check("directory bad filter 400", (await call("GET", "/directory?openTo=GIG", undefined, b2)).status === 400);
+    check("intro to non-shared member 404", (await call("POST", "/intros", { memberId: "m-pat", message: "hi" }, b2)).status === 404 && intro.intros.length === 0);
+    check("intro bad body 400", (await call("POST", "/intros", { memberId: "m-ada" }, b2)).status === 400);
+    const ir = await call("POST", "/intros", { memberId: "m-ada", message: "Hello there" }, b2);
+    check("intro created 201 + notified", ir.status === 201 && ir.json.intro.status === "PENDING" && notes.length === 1 && intro.intros[0].sponsorUserId === "ok");
+    const il = await call("GET", "/intros", undefined, b2);
+    check("intro list, no member email while pending", il.status === 200 && il.json.intros.length === 1 && !JSON.stringify(il.json).includes("ada@purdue.test"));
+    for (let i = 0; i < 12; i++) await call("POST", "/intros", { memberId: "m-pat", message: "hi" }, b2);
+    check("sponsor write throttle 429", (await call("POST", "/intros", { memberId: "m-pat", message: "hi" }, b2)).status === 429);
+
     // Unconfigured secret: fail closed.
     const offLogin = await call("POST", "/login", { email: "ada@acme.com" }, undefined, "/off/sponsor");
     await settle();
-    check("unset secret: login still 202, no mail", offLogin.status === 202 && sent.length === 2);
+    const sentBefore = sent.length;
+    check("unset secret: login still 202, no mail", offLogin.status === 202 && sent.length === sentBefore);
     const offSession = await call("POST", "/session", { token: raw }, undefined, "/off/sponsor");
     check("unset secret: session 503", offSession.status === 503 && offSession.json?.error === "Sponsor sign-in is not configured.");
     check("unset secret: /me 503", (await call("GET", "/me", undefined, bearer, "/off/sponsor")).status === 503);
     check("short secret: session 503", (await call("POST", "/session", { token: raw }, undefined, "/short/sponsor")).status === 503);
     await call("POST", "/login", { email: "ada@acme.com" }, undefined, "/short/sponsor"); await settle();
-    check("short secret: no mail", sent.length === 2);
+    check("short secret: no mail", sent.length === sentBefore);
   } finally {
     server.close();
   }

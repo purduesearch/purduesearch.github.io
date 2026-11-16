@@ -4,6 +4,9 @@
 //   POST /session { token }  single-use magic-link exchange → 7-day sponsor Bearer token.
 //   GET  /me                 requireSponsor → sponsor summary.
 //   POST /logout             requireSponsor → bumps tokenVersion (revokes every session).
+//   GET  /directory          requireSponsor → shared members only, allow-list cards, alphabetical (or gradTerm).
+//   POST /intros             requireSponsor → { memberId, message, opportunityId? }; 1 pending per pair, 20 per 7 days.
+//   GET  /intros             requireSponsor → own requests; memberEmail only once ACCEPTED.
 
 import { Router, type Request, type RequestHandler, type Response } from "express";
 import { createRequireSponsor, sponsorOf } from "../middleware/sponsorAuth.js";
@@ -12,6 +15,10 @@ import {
   getDefaultSponsorStore, normalizeEmail, readSponsorSecret, sponsorSummary,
   type SponsorAuthService, type SponsorAuthStore, type SponsorMailer,
 } from "../services/sponsorAuthService.js";
+import {
+  INTRO_STATUS, IntroError, createIntroService, defaultIntroMailer, defaultIntroNotify, getDefaultIntroStore,
+  type IntroMailer, type IntroNotify, type IntroService, type IntroStore,
+} from "../services/introService.js";
 
 export interface SponsorRouterOptions {
   store?: SponsorAuthStore;
@@ -22,6 +29,9 @@ export interface SponsorRouterOptions {
   frontendUrl?: string;
   /** Receives each background login job (tests await these). */
   onBackground?: (job: Promise<void>) => void;
+  introStore?: IntroStore;
+  notify?: IntroNotify;
+  introMailer?: IntroMailer;
 }
 
 const ACCEPTED = { ok: true, message: "If that address belongs to an active sponsor account, a sign-in link is on its way." };
@@ -40,6 +50,30 @@ export function createSponsorRouter(opts: SponsorRouterOptions = {}): Router {
   }));
   const requireSponsor = createRequireSponsor({ store: opts.store, now, secret });
   const limiter = createLoginRateLimiter(now);
+  let introSvc: IntroService | null = null;
+  const intros = async (): Promise<IntroService> => (introSvc ??= createIntroService({
+    store: opts.introStore ?? await getDefaultIntroStore(),
+    now,
+    notify: opts.notify ?? defaultIntroNotify,
+    mailer: opts.introMailer ?? defaultIntroMailer,
+    frontendUrl: () => frontendBase(opts.frontendUrl),
+  }));
+  const introFail = (res: Response, err: unknown) => {
+    if (err instanceof IntroError) { res.status(INTRO_STATUS[err.code]).json({ error: err.message, code: err.code }); return; }
+    fail(res, err);
+  };
+  const withIntros = (fn: (req: Request, res: Response, s: IntroService) => Promise<unknown>): RequestHandler =>
+    (req, res) => { intros().then(s => fn(req, res, s)).catch(e => introFail(res, e)); };
+  // Per-sponsor-user write throttle (10/min) on top of the 20-per-7-days intro limit.
+  const writes = new Map<string, number[]>();
+  const throttled: RequestHandler = (req, res, next) => {
+    const id = req.sponsorUserId!;
+    const t = now();
+    const recent = (writes.get(id) ?? []).filter(x => t - x < 60_000);
+    if (recent.length >= 10) { res.status(429).json({ error: "Too many requests; try again in a minute", code: "RATE_LIMITED" }); return; }
+    recent.push(t); writes.set(id, recent);
+    next();
+  };
 
   const fail = (res: Response, err: unknown) => {
     console.error("[sponsor] request failed:", err instanceof Error ? err.name : "error");
@@ -79,6 +113,20 @@ export function createSponsorRouter(opts: SponsorRouterOptions = {}): Router {
   router.post("/logout", requireSponsor, wrap(async (req, res, s) => {
     await s.logout(req.sponsorUserId!);
     res.json({ ok: true });
+  }));
+
+  router.get("/directory", requireSponsor, withIntros(async (req, res, s) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await s.directory(req.query as Record<string, unknown>));
+  }));
+
+  router.post("/intros", requireSponsor, throttled, withIntros(async (req, res, s) => {
+    res.status(201).json(await s.requestIntro(sponsorOf(res), req.body));
+  }));
+
+  router.get("/intros", requireSponsor, withIntros(async (req, res, s) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await s.sponsorIntros(req.sponsorUserId!));
   }));
 
   return router;

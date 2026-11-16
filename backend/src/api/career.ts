@@ -7,8 +7,14 @@ import { getPathway } from "../services/pathwayService.js";
 import {
   CAREER_STATUS, CareerError, createCareerService, getDefaultStore, type CareerService, type CareerStore,
 } from "../services/careerService.js";
+import {
+  INTRO_STATUS, IntroError, createIntroService, defaultIntroMailer, defaultIntroNotify, getDefaultIntroStore,
+  type IntroMailer, type IntroService, type IntroStore,
+} from "../services/introService.js";
+import { frontendBase } from "../services/sponsorAuthService.js";
 
 export function sendCareerError(res: Response, err: unknown): void {
+  if (err instanceof IntroError) { res.status(INTRO_STATUS[err.code]).json({ error: err.message, code: err.code }); return; }
   if (err instanceof CareerError) { res.status(CAREER_STATUS[err.code]).json({ error: err.message, code: err.code }); return; }
   console.error("[career] request failed:", err);
   res.status(500).json({ error: "Something went wrong" });
@@ -19,6 +25,10 @@ export interface CareerRouterOptions {
   store?: CareerStore;
   pathway?: (memberId: string, code: string) => Promise<unknown | null>;
   now?: () => number;
+  introStore?: IntroStore;
+  /** Sends the accept email to the sponsor. */
+  mailer?: IntroMailer;
+  frontendUrl?: string;
 }
 
 export function createCareerRouter(opts: CareerRouterOptions = {}): Router {
@@ -27,6 +37,17 @@ export function createCareerRouter(opts: CareerRouterOptions = {}): Router {
   const pathway = opts.pathway ?? getPathway;
   let svc: CareerService | null = null;
   const service = async (): Promise<CareerService> => (svc ??= createCareerService(opts.store ?? await getDefaultStore(), { now }));
+
+  let introSvc: IntroService | null = null;
+  const intros = async (): Promise<IntroService> => (introSvc ??= createIntroService({
+    store: opts.introStore ?? await getDefaultIntroStore(),
+    now,
+    notify: defaultIntroNotify,
+    mailer: opts.mailer ?? defaultIntroMailer,
+    frontendUrl: () => frontendBase(opts.frontendUrl),
+  }));
+  const withIntros = (fn: (req: Request, res: Response, s: IntroService) => Promise<unknown>) =>
+    (req: Request, res: Response) => { intros().then(s => fn(req, res, s)).catch(e => sendCareerError(res, e)); };
 
   const wrap = (fn: (req: Request, res: Response, s: CareerService) => Promise<unknown>) =>
     (req: Request, res: Response) => { service().then(s => fn(req, res, s)).catch(e => sendCareerError(res, e)); };
@@ -68,6 +89,14 @@ export function createCareerRouter(opts: CareerRouterOptions = {}): Router {
     res.type("application/json").send(JSON.stringify(resume, null, 2));
   }));
   router.get("/skills/:skillId/onet", wrap(async (req, res, s) => { res.json(await s.skillOnet(req.memberId!, String(req.params.skillId))); }));
+  // Intro inbox: own requests only. Sponsor email appears only after this member accepted.
+  router.get("/me/intros", withIntros(async (req, res, s) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await s.memberIntros(req.memberId!));
+  }));
+  router.post("/me/intros/:id", throttled, withIntros(async (req, res, s) => {
+    res.json(await s.respond(req.memberId!, String(req.params.id), req.body));
+  }));
   router.get("/demand-signals", wrap(async (_req, res, s) => { res.json(await s.demandSignals()); }));
 
   return router;

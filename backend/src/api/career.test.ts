@@ -7,6 +7,8 @@ import type { AddressInfo } from "node:net";
 import { createCareerRouter } from "./career.js";
 import { METRICS } from "../services/impactMetricCore.js";
 import type { AttestationRow, CareerStore, ProfileRow } from "../services/careerService.js";
+import type { IntroRow, IntroStore } from "../services/introService.js";
+import type { SponsorUserRow } from "../services/sponsorAuthService.js";
 
 let passed = 0, failed = 0;
 function check(name: string, cond: boolean) { if (cond) passed++; else { failed++; console.error(`  FAIL ${name}`); } }
@@ -15,6 +17,33 @@ const src = readFileSync(fileURLToPath(new URL("./career.ts", import.meta.url)),
 check("never reads req.session", !/req\.session/.test(src));
 check("uses requireAuth by default", /requireAuth/.test(src));
 check("no model imports", !/gemini|aiRouter/i.test(src));
+check("member intro routes never use sponsor auth", !/requireSponsor|sponsorUserId/.test(src));
+
+function makeIntroStore() {
+  const sponsor: SponsorUserRow = { id: "s1", email: "sam@acme.test", name: "Sam", tokenVersion: 0, disabledAt: null, org: { id: "o1", name: "Acme", active: true, accessUntil: null } };
+  const intros: IntroRow[] = [
+    { id: "i1", sponsorUserId: "s1", memberId: "m1", opportunityId: null, message: "Hello", status: "PENDING", respondedAt: null, expiresAt: new Date(10_000_000_000_000), createdAt: new Date(1) },
+    { id: "i2", sponsorUserId: "s1", memberId: "m2", opportunityId: null, message: "Hi", status: "PENDING", respondedAt: null, expiresAt: new Date(10_000_000_000_000), createdAt: new Date(1) },
+  ];
+  const store: IntroStore = {
+    // m1 shares with sponsors; m2 does not.
+    sharedMemberIds: async () => ["m1"], sharedMember: async id => (id === "m1" ? { id, displayName: "Ada Lovelace", email: "ada@example.com" } : null),
+    member: async id => ({ id, displayName: "Ada Lovelace", email: "ada@example.com" }),
+    cardSource: async () => null, disabledMetrics: async () => [],
+    createIntro: async () => "DUPLICATE",
+    listForSponsor: async () => [],
+    listForMember: async id => intros.filter(i => i.memberId === id).map(i => ({ ...i, sponsor })),
+    find: async id => { const i = intros.find(x => x.id === id); return i ? { ...i, sponsor } : null; },
+    respond: async (id, memberId, status, now) => {
+      const i = intros.find(x => x.id === id && x.memberId === memberId && x.status === "PENDING");
+      if (!i) return false;
+      i.status = status; i.respondedAt = now; return true;
+    },
+    expireDue: async () => 0,
+  };
+  return { store, intros };
+}
+
 
 const records = METRICS.find(m => m.proof === "RECORDS")!;
 const confirmed = METRICS.find(m => m.proof === "CONFIRMED")!;
@@ -93,6 +122,8 @@ function makeStore() {
 
 async function main() {
   const h = makeStore();
+  const ih = makeIntroStore();
+  const mails: { to: string; html: string }[] = [];
   let clock = 1_000_000;
   const app = express();
   app.use(express.json());
@@ -100,6 +131,7 @@ async function main() {
     // Stub auth: identity comes from a header and lands on req.memberId, like requireAuth.
     auth: (req, res, next) => { const id = req.header("x-test-member"); if (!id) { res.status(401).json({ error: "Unauthorized" }); return; } req.memberId = id; next(); },
     store: h.store, now: () => clock,
+    introStore: ih.store, mailer: async m => { mails.push(m); }, frontendUrl: "https://front.test",
     pathway: async (_m, code) => (code === "11-1" ? { occupation: { code, title: "A" } } : null),
   }));
   const server = app.listen(0);
@@ -231,6 +263,22 @@ async function main() {
     check("no-link skill is empty", r.status === 200 && r.json.placement.length === 0 && r.json.links.length === 0 && r.json.demand === null && r.json.numbers.length === 0 && r.json.suggestedBullet === null);
 
     check("demand signals 200", (await call("GET", "/demand-signals")).status === 200);
+
+    // Intro inbox
+    check("intro inbox needs member auth", (await call("GET", "/me/intros", undefined, null)).status === 401);
+    check("intro respond needs member auth", (await call("POST", "/me/intros/i1", { accept: true }, null)).status === 401);
+    { const rs = await fetch(base + "/me/intros", { headers: { authorization: "Bearer sponsor-token.sig" } });
+      check("sponsor bearer alone cannot read member inbox", rs.status === 401); }
+    r = await call("GET", "/me/intros");
+    check("inbox lists own requests only", r.status === 200 && r.json.intros.length === 1 && r.json.intros[0].id === "i1" && r.json.intros[0].sponsor.org === "Acme");
+    check("inbox hides sponsor email before accept", !r.text.includes("sam@acme.test"));
+    check("respond to another member's request 404", (await call("POST", "/me/intros/i2", { accept: true })).status === 404);
+    check("respond needs boolean", (await call("POST", "/me/intros/i1", { accept: "yes" })).status === 400);
+    r = await call("POST", "/me/intros/i1", { accept: true });
+    check("accept 200 + emails sponsor", r.status === 200 && r.json.status === "ACCEPTED" && mails.length === 1 && mails[0].to === "sam@acme.test" && mails[0].html.includes("ada@example.com"));
+    check("second response 409", (await call("POST", "/me/intros/i1", { accept: false })).status === 409);
+    r = await call("GET", "/me/intros");
+    check("inbox shows sponsor email after accept", r.json.intros[0].status === "ACCEPTED" && r.json.intros[0].sponsor.email === "sam@acme.test");
   } finally {
     server.close();
   }
