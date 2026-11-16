@@ -31,8 +31,8 @@ machine's temporary directory.
 | 14 | Career settings + print route | done | this commit | build / backend typecheck / backend test / root test:ci green | 10 UI tests; route /clubpm/career/print; CSS v=34. |
 | 15 | Sponsor auth [deep] | done | cb8b7534 | build / backend typecheck / backend test green; root test:ci n/a | 100 checks across 3 files; /api/sponsor above bare /api; cron 23 * * * *. |
 | 16 | Talent directory + intros [deep] | done | 197b05fe | build / backend typecheck / backend test green; root test:ci n/a | 261 checks across 4 files; no registry lines. |
-| 17 | Public impact page | done | this commit | build / test:ci / backend typecheck / backend test green | /impact route, Navbar link, sitemap entry. |
-| 18 | Sponsor portal frontend | todo | | | |
+| 17 | Public impact page | done | 65a97a6c | build / test:ci / backend typecheck / backend test green | /impact route, Navbar link, sitemap entry. |
+| 18 | Sponsor portal frontend | in progress (18a done: this commit) | | build / test:ci / backend green after 18a | Split: 18a sponsor portal, 18b member intro inbox. |
 | 19 | Opportunity parsers + matching | todo | | | |
 | 20 | Opportunity service + APIs | todo | | | |
 | 21 | Badges backend [deep] | todo | | | |
@@ -355,6 +355,25 @@ the gate from there on.
   deactivated and showOnPublicPage filters sit in the Prisma store and are checked by source inspection,
   not by running the query. The agent could not open the board 5 mock, so the page follows the plan
   text. OPEN: none.
+
+### Phase 18a — Sponsor portal frontend (sponsor side)
+
+- Split for the four-file limit: 18a covers the sponsor portal; 18b is the member intro inbox in
+  `CareerView.jsx`. Fresh agent. Created `api/sponsorClient.js` (+4 tests), `pages/Public/Sponsors.jsx`
+  (+10 tests), `components/sponsor/SponsorDirectory.jsx` and `components/sponsor/SponsorActivity.jsx`
+  (intro list + posting form), and appended `sponsor-*` CSS to `search-theme.css` (declared tokens only).
+- Login always shows the same confirmation. `?t=` is exchanged and removed from the URL even when the
+  exchange fails. The Bearer token lives in `sessionStorage`. A 401 clears the token and shows "your
+  session ended"; a 503 shows "sign-in unavailable". The directory has filters and name/gradTerm sort,
+  with no score language. Email shows only on ACCEPTED rows. Rows with `sharing: false` show "Member no
+  longer sharing". The posting form is hidden unless `GET /me` returns `features.postings === true`.
+- Controller: applied the `src/App.js` lazy import and the `/sponsors` route beside `/impact`.
+- Controller gate: root build passed; root test:ci 97 suites / 672 tests passed; backend typecheck passed;
+  backend tests 143 files passed, 0 failed.
+- Deviations: the posting body is `{title, url, location, employmentType, description, closesAt}`, and
+  Phase 20 must match it and return `features.postings` from `GET /api/sponsor/me`. The role filter list
+  is built from the roles in the first directory response, because no role-list endpoint exists. The
+  page is `noindex`.
 
 ## Follow-ups
 

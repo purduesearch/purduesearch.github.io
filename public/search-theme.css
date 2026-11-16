@@ -7129,3 +7129,48 @@ button.home-events-day[aria-pressed="true"] .home-events-dot { background: #fff 
 .impact-cta h2 { color: var(--color-text-light); }
 .impact-cta-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center; }
 .impact-attribution { color: var(--color-muted); font-size: 0.8rem; line-height: 1.5; overflow-wrap: anywhere; }
+
+/* === Sponsor portal (/sponsors) === */
+.sponsor-page { max-width: 1100px; margin: 0 auto; padding: calc(var(--navbar-height) + 2rem) 16px 4rem; color: var(--color-text); font-family: var(--font-body); }
+.sponsor-page h1, .sponsor-page h2, .sponsor-page h3, .sponsor-page h4 { font-family: var(--font-heading); color: var(--color-text); }
+.sponsor-hero { margin-bottom: 2rem; }
+.sponsor-eyebrow { color: var(--color-accent); font-family: var(--font-heading); letter-spacing: 0.12em; text-transform: uppercase; margin: 0 0 0.5rem; }
+.sponsor-page h1 { font-size: clamp(2rem, 6vw, 3.25rem); margin: 0 0 1rem; }
+.sponsor-page h2 { font-size: clamp(1.4rem, 4vw, 2rem); margin: 0 0 1rem; }
+.sponsor-page h3 { font-size: 1.3rem; margin: 0 0 0.25rem; }
+.sponsor-page h4 { font-size: 1rem; margin: 0.75rem 0 0.25rem; }
+.sponsor-lede { max-width: 42rem; font-size: 1.1rem; line-height: 1.6; }
+.sponsor-note { color: var(--color-muted); line-height: 1.6; max-width: 46rem; }
+.sponsor-notice { background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 0.75rem 1rem; }
+.sponsor-error { color: var(--color-accent-hover); font-weight: 700; }
+.sponsor-section { margin: 0 0 3rem; }
+.sponsor-login { max-width: 32rem; }
+.sponsor-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; background: var(--color-card-bg); border: 1px solid var(--color-border); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 2rem; }
+.sponsor-bar p { margin: 0; overflow-wrap: anywhere; }
+.sponsor-form, .sponsor-filters { display: flex; flex-direction: column; gap: 0.5rem; }
+.sponsor-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 1rem; align-items: end; margin-bottom: 1.5rem; }
+.sponsor-field { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+.sponsor-page label { font-weight: 700; font-size: 0.9rem; }
+.sponsor-page input, .sponsor-page select, .sponsor-page textarea { width: 100%; box-sizing: border-box; font: inherit; color: var(--color-text); background: var(--color-card-bg); border: 1px solid var(--color-border); border-radius: 6px; padding: 0.6rem 0.75rem; }
+.sponsor-counter { margin: 0; font-size: 0.85rem; color: var(--color-muted); text-align: right; }
+.sponsor-counter.is-over { color: var(--color-accent-hover); font-weight: 700; }
+.sponsor-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+.sponsor-btn { display: inline-flex; align-items: center; gap: 0.5rem; font: inherit; font-weight: 700; color: var(--color-text-light); background: var(--color-accent); border: 1px solid var(--color-accent); border-radius: 6px; padding: 0.6rem 1rem; cursor: pointer; }
+.sponsor-btn:hover:not(:disabled) { background: var(--color-accent-hover); }
+.sponsor-btn:disabled { opacity: 0.6; cursor: default; }
+.sponsor-btn--ghost { background: transparent; color: var(--color-text); border-color: var(--color-border); }
+.sponsor-btn--ghost:hover:not(:disabled) { background: var(--color-bg-secondary); }
+.sponsor-link-btn { font: inherit; background: none; border: 0; padding: 0.25rem 0; color: var(--color-accent); cursor: pointer; text-align: left; }
+.sponsor-link-btn .is-flipped { transform: rotate(180deg); }
+.sponsor-cards, .sponsor-intros { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; }
+.sponsor-cards { grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); }
+.sponsor-card, .sponsor-intro { background: var(--color-card-bg); border: 1px solid var(--color-border); border-radius: 8px; padding: 1.25rem; min-width: 0; display: flex; flex-direction: column; gap: 0.25rem; overflow-wrap: anywhere; }
+.sponsor-card-headline { margin: 0; font-weight: 700; }
+.sponsor-card-meta { margin: 0; color: var(--color-muted); }
+.sponsor-card-detail ul { margin: 0; padding-left: 1.25rem; }
+.sponsor-card-detail li { padding: 0.2rem 0; }
+.sponsor-card > .sponsor-btn { align-self: flex-start; margin-top: 0.75rem; }
+.sponsor-intro-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem; }
+.sponsor-intro-message { margin: 0.25rem 0; white-space: pre-wrap; }
+.sponsor-status { font-size: 0.85rem; border: 1px solid var(--color-border); border-radius: 999px; padding: 0.1rem 0.7rem; background: var(--color-bg-secondary); }
+.sponsor-status--accepted { border-color: var(--color-accent); color: var(--color-accent); }
