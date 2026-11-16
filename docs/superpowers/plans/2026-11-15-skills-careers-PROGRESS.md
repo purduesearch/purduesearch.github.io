@@ -32,8 +32,8 @@ machine's temporary directory.
 | 15 | Sponsor auth [deep] | done | cb8b7534 | build / backend typecheck / backend test green; root test:ci n/a | 100 checks across 3 files; /api/sponsor above bare /api; cron 23 * * * *. |
 | 16 | Talent directory + intros [deep] | done | 197b05fe | build / backend typecheck / backend test green; root test:ci n/a | 261 checks across 4 files; no registry lines. |
 | 17 | Public impact page | done | 65a97a6c | build / test:ci / backend typecheck / backend test green | /impact route, Navbar link, sitemap entry. |
-| 18 | Sponsor portal frontend | done | adf2c6fe (18a), this commit (18b) | build / test:ci / backend typecheck / backend test green | Split: 18a sponsor portal, 18b member intro inbox; CSS v=35. |
-| 19 | Opportunity parsers + matching | todo | | | |
+| 18 | Sponsor portal frontend | done | adf2c6fe (18a), 9e8e8830 (18b) | build / test:ci / backend typecheck / backend test green | Split: 18a sponsor portal, 18b member intro inbox; CSS v=35. |
+| 19 | Opportunity parsers + matching | done | this commit | build / backend typecheck / backend test green; root test:ci n/a | Pure cores; API field names not verified online. |
 | 20 | Opportunity service + APIs | todo | | | |
 | 21 | Badges backend [deep] | todo | | | |
 | 22 | Badges frontend | todo | | | |
@@ -392,7 +392,33 @@ the gate from there on.
   accepting. If the member's email is missing on the client, the preview reads "the email on your
   account". Not checked in a browser.
 
+### Phase 19 — Opportunity parsers + matching
+
+- Fresh agent. Created `services/opportunityParseCore.ts` (8 checks) and
+  `services/opportunityMatchCore.ts` (7 checks). Fixtures are inline in the tests.
+- Parsers: `parseUsajobs(json)`; `parseGreenhouse|parseLever|parseAshby(json, company)` take the
+  board's display name because those APIs don't reliably return one. Other exports: `stripHtml`,
+  `stripEscapedHtml`, `MAX_DESCRIPTION` (20,000). Malformed items are skipped, never thrown. Only
+  http(s) URLs are kept. Ashby jobs with `isListed:false` are skipped.
+- Matching: `buildTitleIndex(jobTitles, occupations)` reuses `normalizeText` from `onetCsvCore.ts`, the
+  same normalizer the loader uses for `titleNorm`. `matchOccupations` tries an exact title, then the
+  title with seniority words removed, then token overlap of at least 0.6; it returns at most 3 codes,
+  ordered by score then code. `matchSkills` reuses `normalizeSkillName`/`buildAliasIndex` with 1–4 word
+  n-grams, so C++, C#, .NET and Node.js match while Java does not match JavaScript. It ignores
+  one-letter aliases (C, R). `isInternship` uses fixed keywords.
+- Controller gate: root build passed; backend typecheck passed; backend tests 145 files passed, 0 failed.
+  Root test:ci n/a.
+- OPEN: no API field names were verified online, so all four sources use the plan's shapes and the
+  agent's recall. USAJOBS uses MatchedObjectId/PositionTitle/PositionURI/OrganizationName/
+  PositionLocationDisplay/PublicationStartDate/ApplicationCloseDate. Phase 20 or rollout must check them
+  against live responses.
+
 ## Follow-ups
+
+- Verify USAJOBS, Greenhouse, Lever and Ashby field names against live responses (Phase 19 used the
+  documented shapes from memory, without checking them online).
+- Phase 18a posting form sends `{title, url, location, employmentType, description, closesAt}`. Phase 20
+  must accept that body and return `features.postings` from `GET /api/sponsor/me`.
 
 - Intro accept preview is built on the client. To guarantee it matches the email, have the inbox (or a
   preview route) return the exact payload the backend will send.
