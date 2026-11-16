@@ -12,9 +12,11 @@ import {
   type IntroMailer, type IntroService, type IntroStore,
 } from "../services/introService.js";
 import { frontendBase } from "../services/sponsorAuthService.js";
+import { BADGE_STATUS, BadgeError, createBadgeService, getDefaultBadgeStore, type BadgeService, type BadgeStore } from "../services/badgeService.js";
 import { OpportunityError, OPPORTUNITY_STATUS, createOpportunityService, getDefaultOpportunityStore, type OpportunityStore, type OpportunityService } from "../services/opportunityService.js";
 
 export function sendCareerError(res: Response, err: unknown): void {
+  if (err instanceof BadgeError) { res.status(BADGE_STATUS[err.code]).json({ error: err.message, code: err.code }); return; }
   if (err instanceof OpportunityError) { res.status(OPPORTUNITY_STATUS[err.code]).json({ error: err.message, code: err.code }); return; }
   if (err instanceof IntroError) { res.status(INTRO_STATUS[err.code]).json({ error: err.message, code: err.code }); return; }
   if (err instanceof CareerError) { res.status(CAREER_STATUS[err.code]).json({ error: err.message, code: err.code }); return; }
@@ -32,6 +34,11 @@ export interface CareerRouterOptions {
   mailer?: IntroMailer;
   frontendUrl?: string;
   opportunityStore?: OpportunityStore;
+  badgeStore?: BadgeStore;
+  /** Fixed signing key JSON (tests) or null for unset; default reads BADGE_SIGNING_JWK. */
+  badgeSigningJwk?: string | null;
+  /** Public API base for credential URLs; default BACKEND_URL. */
+  apiUrl?: string;
 }
 
 export function createCareerRouter(opts: CareerRouterOptions = {}): Router {
@@ -44,6 +51,17 @@ export function createCareerRouter(opts: CareerRouterOptions = {}): Router {
   const opportunities = async () => opportunitySvc ??= createOpportunityService({ store: opts.opportunityStore ?? await getDefaultOpportunityStore(), now });
   const withOpportunities = (fn: (req: Request, res: Response, s: OpportunityService) => Promise<unknown>) =>
     (req: Request, res: Response) => { opportunities().then(s => fn(req, res, s)).catch(e => sendCareerError(res, e)); };
+
+  let badgeSvc: BadgeService | null = null;
+  const badges = async (): Promise<BadgeService> => (badgeSvc ??= createBadgeService({
+    store: opts.badgeStore ?? await getDefaultBadgeStore(),
+    now,
+    signingJwk: opts.badgeSigningJwk !== undefined ? () => opts.badgeSigningJwk ?? null : undefined,
+    apiUrl: opts.apiUrl !== undefined ? () => opts.apiUrl! : undefined,
+    siteUrl: () => frontendBase(opts.frontendUrl),
+  }));
+  const withBadges = (fn: (req: Request, res: Response, s: BadgeService) => Promise<unknown>) =>
+    (req: Request, res: Response) => { badges().then(s => fn(req, res, s)).catch(e => sendCareerError(res, e)); };
 
   let introSvc: IntroService | null = null;
   const intros = async (): Promise<IntroService> => (introSvc ??= createIntroService({
@@ -109,6 +127,16 @@ export function createCareerRouter(opts: CareerRouterOptions = {}): Router {
   }));
   router.post("/me/intros/:id", throttled, withIntros(async (req, res, s) => {
     res.json(await s.respond(req.memberId!, String(req.params.id), req.body));
+  }));
+  // Badges: member-claimed, owner-only revoke. Eligibility is re-checked on claim; nothing is auto-issued.
+  router.get("/me/badges", withBadges(async (req, res, s) => {
+    res.setHeader("Cache-Control", "no-store"); res.json(await s.list(req.memberId!));
+  }));
+  router.post("/me/badges/:achievementId/claim", throttled, withBadges(async (req, res, s) => {
+    res.status(201).json(await s.claim(req.memberId!, String(req.params.achievementId)));
+  }));
+  router.post("/me/badge-awards/:awardId/revoke", throttled, withBadges(async (req, res, s) => {
+    res.json(await s.revoke(req.memberId!, String(req.params.awardId), req.body));
   }));
   router.get("/demand-signals", wrap(async (_req, res, s) => { res.json(await s.demandSignals()); }));
 

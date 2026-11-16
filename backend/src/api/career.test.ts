@@ -9,6 +9,8 @@ import { METRICS } from "../services/impactMetricCore.js";
 import type { AttestationRow, CareerStore, ProfileRow } from "../services/careerService.js";
 import type { IntroRow, IntroStore } from "../services/introService.js";
 import type { SponsorUserRow } from "../services/sponsorAuthService.js";
+import { exportJWK, generateKeyPair } from "jose";
+import type { AwardRow, BadgeStore } from "../services/badgeService.js";
 
 let passed = 0, failed = 0;
 function check(name: string, cond: boolean) { if (cond) passed++; else { failed++; console.error(`  FAIL ${name}`); } }
@@ -120,8 +122,27 @@ function makeStore() {
   return { store, atts, bullets, calls, setDisabled: (d: string[]) => { disabled = d; } };
 }
 
+function makeBadgeStore() {
+  const awards: AwardRow[] = [];
+  const snaps: Record<string, Record<string, number>> = { m1: { members_trained: 6, team_led: 5 }, m2: { members_trained: 8 } };
+  const store: BadgeStore = {
+    member: async id => ({ id, email: `${id}@example.com` }),
+    snapshotValue: async (m, metric) => snaps[m]?.[metric] ?? null,
+    snapshotValues: async m => Object.entries(snaps[m] ?? {}).map(([metricId, value]) => ({ metricId, value })),
+    confirmations: async () => [],
+    disabledMetrics: async () => [],
+    awardsForMember: async m => awards.filter(a => a.memberId === m),
+    award: async id => awards.find(a => a.id === id) ?? null,
+    createAward: async row => { const r = { ...row, revokedAt: null, revokedReason: null }; awards.push(r); return r; },
+    revokeAward: async (id, memberId, at, reason) => { const a = awards.find(x => x.id === id && x.memberId === memberId && !x.revokedAt); if (!a) return false; a.revokedAt = at; a.revokedReason = reason; return true; },
+  };
+  return { store, awards };
+}
+
 async function main() {
   const h = makeStore();
+  const bh = makeBadgeStore();
+  const badgeKey = JSON.stringify(await exportJWK((await generateKeyPair("EdDSA", { extractable: true })).privateKey));
   const ih = makeIntroStore();
   const mails: { to: string; html: string }[] = [];
   let clock = 1_000_000;
@@ -133,6 +154,12 @@ async function main() {
     store: h.store, now: () => clock,
     introStore: ih.store, mailer: async m => { mails.push(m); }, frontendUrl: "https://front.test",
     pathway: async (_m, code) => (code === "11-1" ? { occupation: { code, title: "A" } } : null),
+    badgeStore: bh.store, badgeSigningJwk: badgeKey, apiUrl: "https://api.test",
+  }));
+  app.use("/api/career-nokey", createCareerRouter({
+    auth: (req, _res, next) => { req.memberId = "m2"; next(); },
+    store: h.store, now: () => clock, introStore: ih.store, frontendUrl: "https://front.test",
+    badgeStore: bh.store, badgeSigningJwk: null, apiUrl: "https://api.test",
   }));
   const server = app.listen(0);
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/career`;
@@ -279,6 +306,34 @@ async function main() {
     check("second response 409", (await call("POST", "/me/intros/i1", { accept: false })).status === 409);
     r = await call("GET", "/me/intros");
     check("inbox shows sponsor email after accept", r.json.intros[0].status === "ACCEPTED" && r.json.intros[0].sponsor.email === "sam@acme.test");
+
+    // Badges (member-claimed; owner-only revoke)
+    check("badges need auth", (await call("GET", "/me/badges", undefined, null)).status === 401);
+    check("claim needs auth", (await call("POST", "/me/badges/trainer/claim", undefined, null)).status === 401);
+    r = await call("GET", "/me/badges");
+    { const tb = r.json.badges.find((b: any) => b.id === "trainer");
+      check("badge list: canIssue + trainer eligible", r.status === 200 && r.json.canIssue === true && tb.eligible === true && tb.value === 6 && tb.threshold === 5 && tb.award === null);
+      check("badge list: team-lead needs confirmation", r.json.badges.find((b: any) => b.id === "team-lead").needsConfirmation === true); }
+    check("claim unknown badge 404", (await call("POST", "/me/badges/nope/claim")).status === 404);
+    check("claim unconfirmed team-lead 409", (await call("POST", "/me/badges/team-lead/claim")).status === 409);
+    check("claim below threshold 409", (await call("POST", "/me/badges/lab-practitioner/claim")).status === 409);
+    r = await call("POST", "/me/badges/trainer/claim");
+    check("claim 201 for req.memberId", r.status === 201 && bh.awards.length === 1 && bh.awards[0].memberId === "m1" && r.json.award.verifyUrl === `https://front.test/badges/${r.json.award.id}`);
+    check("claim response has no jwt or email", !r.text.includes("m1@example.com") && !/eyJ/.test(r.text));
+    const awardId = r.json.award.id;
+    check("duplicate claim 409", (await call("POST", "/me/badges/trainer/claim")).status === 409);
+    r = await call("GET", "/me/badges");
+    check("list shows award with linkedin url", r.json.badges.find((b: any) => b.id === "trainer").award?.linkedInUrl?.startsWith("https://www.linkedin.com/profile/add?"));
+    check("other member cannot revoke (404)", (await call("POST", `/me/badge-awards/${awardId}/revoke`, {}, "m2")).status === 404 && bh.awards[0].revokedAt === null);
+    check("revoke bad reason 400", (await call("POST", `/me/badge-awards/${awardId}/revoke`, { reason: 1 })).status === 400);
+    r = await call("POST", `/me/badge-awards/${awardId}/revoke`, { reason: "no longer accurate" });
+    check("owner revoke 200 sets revokedAt only", r.status === 200 && bh.awards.length === 1 && bh.awards[0].revokedAt !== null && typeof bh.awards[0].credentialJwt === "string");
+    check("revoked badge cannot be re-claimed (409 REVOKED)", (await call("POST", "/me/badges/trainer/claim")).json?.code === "REVOKED");
+    { const nk = await fetch(base.replace("/api/career", "/api/career-nokey") + "/me/badges/trainer/claim", { method: "POST" });
+      const body = await nk.json() as { code?: string };
+      check("claim with key unset is 503 NOT_CONFIGURED", nk.status === 503 && body.code === "NOT_CONFIGURED" && !bh.awards.some(a => a.memberId === "m2"));
+      const nl = await (await fetch(base.replace("/api/career", "/api/career-nokey") + "/me/badges")).json() as { canIssue: boolean };
+      check("list with key unset: canIssue false", nl.canIssue === false); }
   } finally {
     server.close();
   }

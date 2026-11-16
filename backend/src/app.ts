@@ -48,6 +48,7 @@ import { skillsRouter, publicPortfolioRouter } from "./api/skills.js";
 import { careerRouter } from "./api/career.js";
 import { careerAdminRouter } from "./api/careerAdmin.js";
 import { sponsorRouter } from "./api/sponsor.js";
+import { publicBadgesRouter } from "./api/badges.js";
 import { skillsAdminRouter } from "./api/skillsAdmin.js";
 import { githubAuthRouter } from "./api/githubAuth.js";
 import { googleAuthRouter } from "./api/googleAuth.js";
@@ -172,6 +173,8 @@ app.use("/api/career", careerRouter);
 // Sponsor portal: own Bearer token, so it sits above every bare /api router.
 app.use("/api/sponsor", sponsorRouter);
 app.use("/api/admin/skills", skillsAdminRouter);
+// Public Open Badges 3.0 endpoints (issuer, jwks, achievements, credential, status). Unauthenticated; above publicRouter and every bare /api router.
+app.use("/api/public/badges", publicBadgesRouter);
 app.use("/api/public/portfolio", publicPortfolioRouter);
 // Mounted before the bare "/api" routers below (blockersRouter, streakRouter):
 // those attach requireAuth via router.use() with no path, which Express runs

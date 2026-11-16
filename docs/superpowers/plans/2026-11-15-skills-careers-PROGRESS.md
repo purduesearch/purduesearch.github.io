@@ -34,8 +34,8 @@ machine's temporary directory.
 | 17 | Public impact page | done | 65a97a6c | build / test:ci / backend typecheck / backend test green | /impact route, Navbar link, sitemap entry. |
 | 18 | Sponsor portal frontend | done | adf2c6fe (18a), 9e8e8830 (18b) | build / test:ci / backend typecheck / backend test green | Split: 18a sponsor portal, 18b member intro inbox; CSS v=35. |
 | 19 | Opportunity parsers + matching | done | b8fdabcc | build / backend typecheck / backend test green; root test:ci n/a | Pure cores; documentation checked and Ashby repaired in Phase 20. |
-| 20 | Opportunity service + APIs | local complete; push blocked | this commit | build / backend typecheck / backend test green; root test:ci n/a | 45 service/HTTP checks; automatic approval review requires human review before push. |
-| 21 | Badges backend [deep] | todo | | | |
+| 20 | Opportunity service + APIs | done | 3ab2ebc3 | build / backend typecheck / backend test green; root test:ci n/a | 45 service/HTTP checks; pushed. |
+| 21 | Badges backend [deep] | done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 222 checks across 4 files; /api/public/badges above publicRouter; jose 6.2.13. |
 | 22 | Badges frontend | todo | | | |
 | 23 | Security and privacy review [deep, fresh] | todo | | | |
 | 24 | Docs | todo | | | |
@@ -48,7 +48,7 @@ Controller root build passed (existing warnings), backend typecheck passed, and 
 
 ## Open items
 
-0. Phase 20 delivery: automatic approval review rejected the command containing
+0. Resolved (2026-11-16): Phase 20 commit 3ab2ebc3 was pushed and matches origin. Original note: Phase 20 delivery: automatic approval review rejected the command containing
    `git push origin feat/skills-careers`: "Pushing should never happen without a human looking first."
    Phase 20 is green and committed locally; review the phase commit, then explicitly authorize retrying
    the push. Phase 21 has not started. No push was attempted through an alternate mechanism.
@@ -461,7 +461,33 @@ the gate from there on.
   then start a fresh strongest-setting Phase 21 agent. Do not repeat Phase 20 implementation or gates
   unless code changes.
 
+### Phase 21 — Badges backend
+
+- Fresh strongest-setting agent `phase_21`: created `badgeCore.ts`, `badgeService.ts`, public `api/badges.ts`
+  (+ tests: 41, 55, 23 checks) and added member routes to `career.ts` (+18 checks, 103 total):
+  `GET /api/career/me/badges`, `POST /me/badges/:achievementId/claim` (201), `POST /me/badge-awards/:awardId/revoke`.
+- Controller: pinned `jose` 6.2.13 exactly in `backend/package.json`; mounted `/api/public/badges` above
+  `publicPortfolioRouter`/`publicRouter`; added the `PUBLIC_BADGE_ROUTERS` mount-order check; added
+  `BADGE_SIGNING_JWK` to root `.env.example`. URLs use existing `BACKEND_URL`/`FRONTEND_URL`; per-award random
+  salt stored in the credential, so no salt env var.
+- Spec constants verified online against OB 3.0 Final: contexts `https://www.w3.org/ns/credentials/v2` +
+  `https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json`, `validFrom`, VC-JWT payload = credential plus
+  iss/jti/sub/nbf (no `vc` claim, §8.2.4.1), IdentityHash `sha256$` + hex(sha256(email + salt)) (§B.7, spec vector passes).
+  Subject has no name; `credentialSubject.id` is a random `urn:uuid:`.
+- Revoked achievements cannot be re-claimed (409 REVOKED; one row per member and achievement). Revoke is owner-only.
+- Verified fields: BadgeAward all columns; ImpactSnapshot memberId/metricId/value (`memberId_metricId`);
+  ImpactAttestation memberId/kind/metricId/value/status; Member.email nullable (no identifier when null).
+- Controller gate: root build passed; backend typecheck passed; backend tests 149 files passed, 0 failed.
+- OPEN (Phase 25): §8.2.3 says RS256 minimum, EdDSA permitted but may limit interoperability; check the
+  validator. `credentialStatus.type` is custom `ConstellationBadgeStatus` (validators may ignore it;
+  BitstringStatusList is a follow-up). LinkedIn Add to profile parameter names not confirmed against
+  official docs; test the link by hand. Emails are lowercased before hashing.
+
 ## Follow-ups
+
+- Badge key rotation: jwks.json publishes only the current key, so old credentials show KEY_MISMATCH after
+  rotation. Keep old public keys in jwks.json if rotation is ever needed.
+- Badge revocation uses a custom status endpoint; consider BitstringStatusList for validator support.
 
 - Smoke-test configured USAJOBS, Greenhouse, Lever and Ashby sources at rollout. Documentation field
   verification and the Phase 18 posting-form integration were completed in Phase 20.

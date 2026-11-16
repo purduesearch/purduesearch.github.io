@@ -75,6 +75,17 @@ for (const router of SPONSOR_ROUTERS) {
   }
 }
 
+// Public Open Badges endpoints: unauthenticated, so neither publicRouter nor a bare /api requireAuth may shadow them.
+const PUBLIC_BADGE_ROUTERS = ["publicBadgesRouter"];
+for (const router of PUBLIC_BADGE_ROUTERS) {
+  const at = indexOf(router);
+  check(`${router} is mounted`, at !== -1);
+  check(`${router} is mounted above publicRouter`, at !== -1 && at < indexOf("publicRouter"));
+  for (const bare of bareApi) {
+    check(`${router} is mounted above app.use("/api", ${bare.router})`, at !== -1 && at < bare.i);
+  }
+}
+
 // D6: the Slack mirror directory must never be served statically.
 const guardAt = src.indexOf('app.use("/uploads/slack"');
 const staticAt = src.indexOf('app.use("/uploads", express.static');
