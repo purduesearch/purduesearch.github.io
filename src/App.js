@@ -22,6 +22,7 @@ const PublicCampaign = lazy(() => import('./pages/PublicCampaign'));
 const EventRsvp = lazy(() => import('./pages/Public/EventRsvp'));
 const PublicSchedule = lazy(() => import('./pages/Public/PublicSchedule'));
 const Portfolio = lazy(() => import('./pages/Public/Portfolio'));
+const Impact = lazy(() => import('./pages/Public/Impact'));
 const Archive = lazy(() => import('./pages/Archive'));
 const BlogPost = lazy(() => import('./pages/BlogPost'));
 const About = lazy(() => import('./pages/About'));
@@ -195,6 +196,7 @@ function AnimatedRoutes() {
             <Route path="/software/suits" element={<Navigate to="/software" replace />} />
             <Route path="/software/field-notebook" element={<Navigate to="/software" replace />} />
             <Route path="/business" element={<PageWrapper><Business /></PageWrapper>} />
+            <Route path="/impact" element={<PageWrapper><Impact /></PageWrapper>} />
             <Route path="/astrousa" element={<PageWrapper><AstroUSA /></PageWrapper>} />
             <Route path="/astrousa/overview" element={<PageWrapper><AstroOverview /></PageWrapper>} />
             <Route path="/astrousa/architecture" element={<PageWrapper><AstroArchitecture /></PageWrapper>} />

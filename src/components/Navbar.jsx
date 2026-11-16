@@ -9,7 +9,7 @@ import { TEAMS, TEAMS_PATHS } from '../lib/teams';
 
 // Primary nav reads About · Teams ▾ · Blog; Home is the centre wordmark.
 const NAV_BEFORE_TEAMS = [{ label: 'About', to: '/about' }];
-const NAV_AFTER_TEAMS  = [{ label: 'Blog',  to: '/blog' }];
+const NAV_AFTER_TEAMS  = [{ label: 'Blog',  to: '/blog' }, { label: 'Impact', to: '/impact' }];
 
 // `solid` keeps the opaque bar at scrollY 0 — for pages with no dark hero
 // behind the navbar, where the transparent state's white links vanish.

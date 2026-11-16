@@ -572,3 +572,17 @@ publicRouter.post("/campaigns/:slug/signup", async (req: Request, res: Response)
     res.status(500).json({ error: "Failed to record signup" });
   }
 });
+
+// ── Public impact page ────────────────────────────────────────
+// Aggregates hide any count below 3; cards come from the allow-list builder. No per-member values.
+publicRouter.get("/impact", async (_req: Request, res: Response) => {
+  try {
+    const { getPublicImpact } = await import("../services/publicImpactService.js");
+    const payload = await getPublicImpact();
+    res.set("Cache-Control", "public, max-age=3600");
+    res.json(payload);
+  } catch (error) {
+    console.error("GET /public/impact error:", error);
+    res.status(500).json({ error: "Failed to load impact" });
+  }
+});

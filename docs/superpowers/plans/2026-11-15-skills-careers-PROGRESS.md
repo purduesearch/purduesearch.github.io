@@ -30,8 +30,8 @@ machine's temporary directory.
 | 13 | Pathway + skill detail UI (13b) | done | this commit | build / backend typecheck / backend test / root test:ci green | 11 UI tests + drawer assertion; CSS v=33. |
 | 14 | Career settings + print route | done | this commit | build / backend typecheck / backend test / root test:ci green | 10 UI tests; route /clubpm/career/print; CSS v=34. |
 | 15 | Sponsor auth [deep] | done | cb8b7534 | build / backend typecheck / backend test green; root test:ci n/a | 100 checks across 3 files; /api/sponsor above bare /api; cron 23 * * * *. |
-| 16 | Talent directory + intros [deep] | done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 261 checks across 4 files; no registry lines. |
-| 17 | Public impact page | todo | | | |
+| 16 | Talent directory + intros [deep] | done | 197b05fe | build / backend typecheck / backend test green; root test:ci n/a | 261 checks across 4 files; no registry lines. |
+| 17 | Public impact page | done | this commit | build / test:ci / backend typecheck / backend test green | /impact route, Navbar link, sitemap entry. |
 | 18 | Sponsor portal frontend | todo | | | |
 | 19 | Opportunity parsers + matching | todo | | | |
 | 20 | Opportunity service + APIs | todo | | | |
@@ -334,7 +334,32 @@ the gate from there on.
 - Controller gate: root build passed; backend typecheck passed; backend tests 142 files passed, 0 failed.
   Root test:ci n/a (no `src/` changes).
 
+### Phase 17 — Public impact page
+
+- Fresh implementation agent. Created `services/publicImpactService.ts` (+17 checks) and
+  `pages/Public/Impact.jsx` (+3 tests). Added `GET /api/public/impact` (`public, max-age=3600`) in
+  `public.ts` and appended `impact-*` CSS to `search-theme.css`, using only declared `:root` tokens.
+- Totals come from `publicAggregate` (floor 3), over RECORDS metrics that admins have not disabled. Tool
+  counts include only members with a demonstrated skill (level >= 3, not disputed, shared publicly or to
+  the team) linked to an O*NET hot technology, floor 3, with each member counted once. Featured cards use
+  `buildPublicCard`, reached through the intro store's `cardSource` (not forked), in alphabetical order.
+  Card keys are only name/major/gradTerm/targets/bullets. O*NET attribution is shown. Join links to
+  `/contact`; Sponsor links to `/sponsors`.
+- Controller: applied the `src/App.js` lazy import and the `/impact` route (PageWrapper, beside
+  `/business`), added Impact to the Navbar's `NAV_AFTER_TEAMS`, and added a `/impact` entry to
+  `public/sitemap.xml`.
+- Controller gate: root build passed; root test:ci 95 suites / 657 tests passed; backend typecheck passed;
+  backend tests 143 files passed, 0 failed.
+- Deviations: CONFIRMED metrics (for example `team_led`) are not totalled. They are shareable only
+  through a per-member attestation, and they are a maximum, so they cannot be summed. The bot,
+  deactivated and showOnPublicPage filters sit in the Prisma store and are checked by source inspection,
+  not by running the query. The agent could not open the board 5 mock, so the page follows the plan
+  text. OPEN: none.
+
 ## Follow-ups
+
+- /impact was built without the board 5 mock and has not been checked in a browser at 375px. Check the
+  page visually before rollout.
 
 - Directory runs about 8 queries per shared member per request. Batch or cache if sharing members grow
   large.
