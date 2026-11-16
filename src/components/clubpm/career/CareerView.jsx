@@ -6,6 +6,7 @@ import ResumeBuilder from './ResumeBuilder';
 import PathwayView from './PathwayView';
 import OccupationPicker from './OccupationPicker';
 import CareerSettings from './CareerSettings';
+import IntroInbox from './IntroInbox';
 
 /** Mirrors backend validateMemberTemplate: {n} exactly once, no other braces, 300 chars max. */
 export function validateTemplate(t) {
@@ -147,6 +148,8 @@ export default function CareerView() {
     {settingsOpen
       ? <CareerSettings profile={data.profile} claims={claims} onSaved={load} onClose={() => setSettingsOpen(false)} />
       : <div><button type="button" className="pm-career-btn pm-career-btn--ghost" onClick={() => setSettingsOpen(true)}><i className="fas fa-gear" aria-hidden="true" /> Settings</button></div>}
+
+    <IntroInbox bullets={bullets} onOpenSettings={() => setSettingsOpen(true)} />
 
     <section className="pm-career-section" aria-label="Verified impact">
       <h3>Verified impact</h3>

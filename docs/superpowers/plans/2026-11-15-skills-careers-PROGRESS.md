@@ -32,7 +32,7 @@ machine's temporary directory.
 | 15 | Sponsor auth [deep] | done | cb8b7534 | build / backend typecheck / backend test green; root test:ci n/a | 100 checks across 3 files; /api/sponsor above bare /api; cron 23 * * * *. |
 | 16 | Talent directory + intros [deep] | done | 197b05fe | build / backend typecheck / backend test green; root test:ci n/a | 261 checks across 4 files; no registry lines. |
 | 17 | Public impact page | done | 65a97a6c | build / test:ci / backend typecheck / backend test green | /impact route, Navbar link, sitemap entry. |
-| 18 | Sponsor portal frontend | in progress (18a done: this commit) | | build / test:ci / backend green after 18a | Split: 18a sponsor portal, 18b member intro inbox. |
+| 18 | Sponsor portal frontend | done | adf2c6fe (18a), this commit (18b) | build / test:ci / backend typecheck / backend test green | Split: 18a sponsor portal, 18b member intro inbox; CSS v=35. |
 | 19 | Opportunity parsers + matching | todo | | | |
 | 20 | Opportunity service + APIs | todo | | | |
 | 21 | Badges backend [deep] | todo | | | |
@@ -375,7 +375,27 @@ the gate from there on.
   is built from the roles in the first directory response, because no role-list endpoint exists. The
   page is `noindex`.
 
+### Phase 18b — Member intro inbox
+
+- Fresh agent. Created `career/IntroInbox.jsx` (+6 tests), mounted it in `CareerView.jsx` (+1 test: an
+  intro fetch failure leaves the Career view intact), added `careerApi.intros()`/`respondIntro()`, and
+  appended the `pm-career-intro-*` CSS.
+- The sponsor message renders as plain text. Accept opens an inline confirm that previews the member's
+  email and the exportable bullets (same rule as the backend's `exportable()`), plus the opportunity
+  reference line. One ref guard covers accept and decline. A 409 "not sharing" points to Settings.
+- Controller: CSS cache bump to `v=35`, and an Intro requests sentence in
+  `constellation-101/content/skills-workspace.md`. No route or tour anchor change.
+- Controller gate: root build passed; root test:ci 98 suites / 679 tests passed; backend typecheck passed;
+  backend tests 143 files passed, 0 failed.
+- Deviations: the inbox payload carries no preview, so the client builds it from `/api/career/me`. The
+  backend recomputes at accept time, so the email can differ if bullets change between viewing and
+  accepting. If the member's email is missing on the client, the preview reads "the email on your
+  account". Not checked in a browser.
+
 ## Follow-ups
+
+- Intro accept preview is built on the client. To guarantee it matches the email, have the inbox (or a
+  preview route) return the exact payload the backend will send.
 
 - /impact was built without the board 5 mock and has not been checked in a browser at 375px. Check the
   page visually before rollout.

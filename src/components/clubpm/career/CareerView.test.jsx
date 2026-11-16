@@ -4,7 +4,7 @@ import CareerView from './CareerView';
 import { careerApi } from '../../../api/clubPmClient';
 
 jest.mock('../../../clubpm/ClubPmAuth', () => ({ useClubPmAuth: () => ({ member: { id: 'm1', displayName: 'Ada Lovelace' } }) }));
-jest.mock('../../../api/clubPmClient', () => ({ careerApi: { me: jest.fn(), setBullet: jest.fn(), recompute: jest.fn(), downloadResumeJson: jest.fn() } }));
+jest.mock('../../../api/clubPmClient', () => ({ careerApi: { me: jest.fn(), setBullet: jest.fn(), recompute: jest.fn(), intros: jest.fn(), respondIntro: jest.fn(), downloadResumeJson: jest.fn() } }));
 jest.mock('react-hot-toast', () => ({ success: jest.fn(), error: jest.fn() }));
 
 const bullet = (o) => ({ sourceKind: 'METRIC', claimId: null, shareable: true, pending: false, selected: true, hidden: false, order: 0, ...o });
@@ -24,7 +24,7 @@ const fixture = (over = {}) => ({
   certifications: [], badges: { count: 0, items: [] }, attribution: 'O*NET attribution CC BY 4.0', ...over,
 });
 const mount = () => render(<MemoryRouter><CareerView /></MemoryRouter>);
-beforeEach(() => { jest.clearAllMocks(); careerApi.me.mockResolvedValue(fixture()); careerApi.setBullet.mockResolvedValue({ ok: true }); });
+beforeEach(() => { jest.clearAllMocks(); careerApi.me.mockResolvedValue(fixture()); careerApi.intros.mockResolvedValue({ intros: [] }); careerApi.setBullet.mockResolvedValue({ ok: true }); });
 
 test('tiles show proof badges', async () => {
   mount();
@@ -95,4 +95,11 @@ test('DWA line and skill names render from the API', async () => {
   expect(screen.getByText('4.A.2.b.2.b.1')).toBeTruthy();
   expect(screen.getByText(/Develop software or computer applications/)).toBeTruthy();
   expect(within(screen.getByTestId('career-paper')).getByText(/Python · SolidWorks/)).toBeTruthy();
+});
+
+test('an intro fetch failure does not break the career view', async () => {
+  careerApi.intros.mockRejectedValue(new Error('down'));
+  mount();
+  expect(await screen.findByText('Authored pull requests merged')).toBeTruthy();
+  expect(await screen.findByText(/could not be loaded/i, { selector: '.pm-career-intro-state' })).toBeTruthy();
 });

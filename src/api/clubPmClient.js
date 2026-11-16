@@ -1204,6 +1204,8 @@ export const careerApi = {
   recompute: () => post('/api/career/me/recompute', {}),
   setBullet: (sourceKind, sourceId, data) =>
     put(`/api/career/me/bullets/${encodeURIComponent(sourceKind)}/${encodeURIComponent(sourceId)}`, data),
+  intros: () => get('/api/career/me/intros'),
+  respondIntro: (id, accept) => post(`/api/career/me/intros/${encodeURIComponent(id)}`, { accept }),
   createClaim: data => post('/api/career/me/claims', data),
   deleteClaim: id => del(`/api/career/me/claims/${encodeURIComponent(id)}`),
   async downloadResumeJson() {

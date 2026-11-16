@@ -32503,3 +32503,15 @@ html.clubpm-route.pm-career-print-html { background-color: #e9e6df !important; c
   .pm-career-print-page li { break-inside: avoid; page-break-inside: avoid; }
   .pm-career-print-page h2 { break-after: avoid; }
 }
+
+/* === Career: intro inbox === */
+.pm-career-intro-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.pm-career-intro { padding: 12px; border-radius: 10px; border: 1px solid var(--pm-border, rgba(255,255,255,.07)); background: var(--pm-bg-elevated, #1a1e2a); min-width: 0; }
+.pm-career-intro-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.pm-career-intro-head strong { font-size: 14px; }
+.pm-career-intro-msg { margin: 8px 0; font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pm-career-intro-meta { margin: 0; font-size: 12px; color: var(--pm-text-secondary, #8892a4); }
+.pm-career-intro-state { margin: 0; font-size: 13px; color: var(--pm-text-secondary, #8892a4); }
+.pm-career-intro-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.pm-career-intro-preview { margin: 8px 0; padding-left: 20px; font-size: 13px; overflow-wrap: anywhere; }
+@media (max-width: 640px) { .pm-career-intro-actions .pm-career-btn { flex: 1 1 100%; } }
