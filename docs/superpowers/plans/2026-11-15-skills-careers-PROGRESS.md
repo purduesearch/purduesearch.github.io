@@ -29,7 +29,7 @@ machine's temporary directory.
 | 13a | Skill O*NET detail endpoint (split) | done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 75 route checks; GET /api/career/skills/:id/onet. |
 | 13 | Pathway + skill detail UI (13b) | done | this commit | build / backend typecheck / backend test / root test:ci green | 11 UI tests + drawer assertion; CSS v=33. |
 | 14 | Career settings + print route | done | this commit | build / backend typecheck / backend test / root test:ci green | 10 UI tests; route /clubpm/career/print; CSS v=34. |
-| 15 | Sponsor auth [deep] | todo | | | |
+| 15 | Sponsor auth [deep] | done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 100 checks across 3 files; /api/sponsor above bare /api; cron 23 * * * *. |
 | 16 | Talent directory + intros [deep] | todo | | | |
 | 17 | Public impact page | todo | | | |
 | 18 | Sponsor portal frontend | todo | | | |
@@ -285,7 +285,34 @@ the gate from there on.
   outside `.pm-career-print`. Terms are `YYYY-MM` text inputs (Safari desktop lacks `type=month`).
   OPEN: none.
 
+### Phase 15 — Sponsor auth
+
+- Fresh strongest-setting implementation agent (wrote no later phase). Created
+  `services/sponsorAuthService.ts`, `middleware/sponsorAuth.ts`, `api/sponsor.ts` (auth routes only) and
+  tests (51 + 17 + 32 checks).
+- `POST /login` answers 202 before any lookup; the lookup, token write and email run afterwards with
+  errors caught. Rate limits 5 per normalized email and 30 per IP per rolling hour (over-limit still 202,
+  nothing sent). Token = 32 random bytes, stored only as SHA-256 hex, 15 minutes; a new request retires
+  the user's earlier unused links. Link built from `FRONTEND_URL`, HTML escaped.
+- `POST /session` consumes atomically (`updateMany` count must be 1), re-checks eligibility and returns a
+  7-day `sponsor:`-prefixed HMAC Bearer on `SPONSOR_TOKEN_SECRET` (timing-safe compare). Member and
+  sponsor tokens never verify as each other, even with equal secrets. Missing or short (<32) secret fails
+  closed: login 202 without sending, session/me/logout 503. `requireSponsor` re-reads user and org every
+  request (disabled, inactive org, `accessUntil`, `tokenVersion` → 401) and sets `req.sponsorUserId`;
+  `GET /me`, `POST /logout` (revokes all sessions). Logs hold no tokens, hashes or emails.
+- Controller: applied `app.ts` import + `/api/sponsor` mount right after `/api/career` (above every bare
+  `/api` router), `SPONSOR_ROUTERS` guard in `appMountOrder.test.ts` (86 checks pass), the `23 * * * *`
+  `runSponsorMaintenance` cron in `scheduler.ts` (data only), and `SPONSOR_TOKEN_SECRET=` in root
+  `.env.example`.
+- Controller gate: root build passed; backend typecheck passed; backend tests 140 files passed, 0 failed.
+  Root test:ci n/a (no `src/` changes).
+- Deviations: ineligible sponsors get 401 everywhere (never 403). OPEN: the login rate limiter is
+  per-process memory; with several API instances the limit applies per instance (recorded as follow-up).
+
 ## Follow-ups
+
+- Sponsor login rate limiter is per-process memory. If the API runs on several instances, move it to
+  Postgres or Redis so the 5-per-hour limit is global.
 
 - `GET /api/career/me` does not return a bullet's stored custom template, so the editor reconstructs it
   from the rendered text. Return `template` per bullet if members report odd prefills.

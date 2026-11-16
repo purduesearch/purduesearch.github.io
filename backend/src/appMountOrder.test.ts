@@ -34,6 +34,8 @@ check("found the app.use mounts", mounts.length > 20);
 // Routers whose routes authenticate via a `?token=` query param.
 const QUERY_TOKEN_ROUTERS = ["sseRouter", "chatRouter", "vaultReleasesRouter", "courseFilesRouter"];
 const CONNECTOR_ROUTERS = ["oauthMetadataRouter", "oauthRouter", "mcpRouter"];
+// Sponsor portal authenticates with its own Bearer token; no member requireAuth may run first.
+const SPONSOR_ROUTERS = ["sponsorRouter"];
 
 // Routers that attach a pathless requireAuth, keyed to a mount path that
 // shadows a query-token router. Bare "/api" mounts are checked generically.
@@ -58,6 +60,14 @@ for (const router of QUERY_TOKEN_ROUTERS) {
 }
 
 for (const router of CONNECTOR_ROUTERS) {
+  const at = indexOf(router);
+  check(`${router} is mounted`, at !== -1);
+  for (const bare of bareApi) {
+    check(`${router} is mounted above app.use("/api", ${bare.router})`, at !== -1 && at < bare.i);
+  }
+}
+
+for (const router of SPONSOR_ROUTERS) {
   const at = indexOf(router);
   check(`${router} is mounted`, at !== -1);
   for (const bare of bareApi) {

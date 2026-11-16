@@ -47,6 +47,7 @@ import { publicRouter } from "./api/public.js";
 import { skillsRouter, publicPortfolioRouter } from "./api/skills.js";
 import { careerRouter } from "./api/career.js";
 import { careerAdminRouter } from "./api/careerAdmin.js";
+import { sponsorRouter } from "./api/sponsor.js";
 import { skillsAdminRouter } from "./api/skillsAdmin.js";
 import { githubAuthRouter } from "./api/githubAuth.js";
 import { googleAuthRouter } from "./api/googleAuth.js";
@@ -168,6 +169,8 @@ app.use("/api/tasks", tasksRouter);
 app.use("/api/skills", skillsRouter);
 app.use("/api/admin/career", careerAdminRouter);
 app.use("/api/career", careerRouter);
+// Sponsor portal: own Bearer token, so it sits above every bare /api router.
+app.use("/api/sponsor", sponsorRouter);
 app.use("/api/admin/skills", skillsAdminRouter);
 app.use("/api/public/portfolio", publicPortfolioRouter);
 // Mounted before the bare "/api" routers below (blockersRouter, streakRouter):

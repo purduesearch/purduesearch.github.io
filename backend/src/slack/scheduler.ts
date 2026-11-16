@@ -102,6 +102,17 @@ export function startScheduler(app: App): void {
     }
   });
 
+  // ── Hourly :23 — sponsor maintenance (data only, not a Slack send) ──
+  // Deletes used or expired SponsorLoginToken rows (Phase 16 adds intro expiry). Logs counts only.
+  cron.schedule("23 * * * *", async () => {
+    try {
+      const { runSponsorMaintenance } = await import("../services/sponsorAuthService.js");
+      await runSponsorMaintenance();
+    } catch (error) {
+      console.error("[sponsor] cron error:", error);
+    }
+  });
+
   // ── Every 20 min — reconcile PR-linked Vault change requests ─────
   // Webhooks are the fast path; this catches missed deliveries and permission
   // loss. Also prunes delivery ids old enough that GitHub will not redeliver.
