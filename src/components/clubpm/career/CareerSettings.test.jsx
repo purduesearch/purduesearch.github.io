@@ -37,12 +37,21 @@ test('sponsor sharing needs a confirm step; public toggle is independent', async
   mount();
   fireEvent.click(screen.getByLabelText('Share with sponsors'));
   expect(careerApi.updateProfile).not.toHaveBeenCalled();
-  expect(screen.getByRole('alertdialog').textContent).toMatch(/first name and last initial/);
+  const sponsorCopy = screen.getByRole('alertdialog').textContent;
+  // Every field buildSponsorCard sends must be named in the consent copy.
+  for (const field of [/first name and last initial/, /major/, /graduation term/, /headline/, /open to/, /available-from date/,
+    /target roles/, /verified bullets/, /standard wording/, /certifications \(name and provider\)/, /badges .*verification links/]) {
+    expect(sponsorCopy).toMatch(field);
+  }
   fireEvent.click(screen.getByRole('button', { name: 'Yes, turn it on' }));
   await waitFor(() => expect(careerApi.updateProfile).toHaveBeenCalledWith({ shareWithSponsors: true }));
   expect(careerApi.updateProfile).toHaveBeenCalledTimes(1);
 
   fireEvent.click(screen.getByLabelText('Show on the public Impact page'));
+  const publicCopy = screen.getByRole('alertdialog').textContent;
+  // buildPublicCard: name, major, graduation term, target roles, bullets. Nothing else.
+  for (const field of [/first name and last initial/, /major/, /graduation term/, /target roles/, /verified bullets/]) expect(publicCopy).toMatch(field);
+  expect(publicCopy).toMatch(/will not see your headline, certifications, badges/);
   fireEvent.click(screen.getByRole('button', { name: 'Yes, turn it on' }));
   await waitFor(() => expect(careerApi.updateProfile).toHaveBeenCalledWith({ showOnPublicPage: true }));
 });

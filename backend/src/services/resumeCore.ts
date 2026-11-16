@@ -37,7 +37,13 @@ export interface ResumeBulletOut {
   sourceId: string;
   metricId: string | null;
   claimId: string | null;
+  /** Member's view: their own valid template when set, else the canonical wording. Never leaves their view. */
   text: string;
+  /**
+   * Canonical wording: the registry `bulletTemplate` for metrics, the verified claim's `label: value unit` for
+   * claims. The only text that may reach a sponsor, the public page or an intro email (see `sharedBullets`).
+   */
+  sharedText: string;
   proof: ImpactProof;
   shareable: boolean;
   /** True while awaiting a lead/admin: unverified claims and unconfirmed CONFIRMED metrics. Member view only. */
@@ -71,13 +77,12 @@ export function buildBullets(
     if (!snap || !Number.isFinite(snap.value) || !(snap.value > 0) || disabled.has(def.id)) return;
     const row = rows.get(`METRIC:${def.id}`);
     const ok = def.proof === "RECORDS" ? true : hasVerifiedConfirm(def.id, snap.value, attestations);
-    const template = row?.template != null && validateMemberTemplate(row.template).valid ? row.template : def.bulletTemplate;
-    const text = renderBullet(template, {
-      n: snap.value, tool: snap.detail?.tool ?? null, projects: (snap.detail?.projects ?? []).map(p => p.name),
-    });
+    const vars = { n: snap.value, tool: snap.detail?.tool ?? null, projects: (snap.detail?.projects ?? []).map(p => p.name) };
+    const sharedText = renderBullet(def.bulletTemplate, vars);
+    const text = row?.template != null && validateMemberTemplate(row.template).valid ? renderBullet(row.template, vars) : sharedText;
     const included = row ? row.included : true;
     draft.push({
-      key: `METRIC:${def.id}`, sourceKind: "METRIC", sourceId: def.id, metricId: def.id, claimId: null, text,
+      key: `METRIC:${def.id}`, sourceKind: "METRIC", sourceId: def.id, metricId: def.id, claimId: null, text, sharedText,
       proof: def.proof, shareable: ok, pending: !ok, selected: included, hidden: !included, order: 0, rank,
     });
   });
@@ -93,7 +98,7 @@ export function buildBullets(
     const ok = shareable("CLAIM", a as ImpactAttestationInput);
     const included = row ? row.included : true;
     draft.push({
-      key: `ATTESTATION:${a.id}`, sourceKind: "ATTESTATION", sourceId: a.id, metricId: null, claimId: a.id, text,
+      key: `ATTESTATION:${a.id}`, sourceKind: "ATTESTATION", sourceId: a.id, metricId: null, claimId: a.id, text, sharedText: fallback,
       proof: "CLAIM", shareable: ok, pending: !ok, selected: included, hidden: !included, order: 0,
       rank: metricDefs.length,
     });
@@ -112,6 +117,15 @@ export function buildBullets(
 
 /** Only these ever leave the member's view. */
 export const exportable = (b: ResumeBulletOut) => b.shareable && !b.pending && b.selected && !b.hidden;
+
+/**
+ * Exportable bullets for anyone other than the member (sponsor card, public card, intro accept email), with
+ * `text` replaced by the canonical `sharedText`. A member's custom template is unreviewed free text, so it must
+ * never reach these surfaces (decisions 3-4). The member's own view and JSON Resume keep `text`.
+ */
+export function sharedBullets(bullets: readonly ResumeBulletOut[]): ResumeBulletOut[] {
+  return bullets.filter(exportable).map(b => ({ ...b, text: b.sharedText }));
+}
 
 export interface ResumeProfileInput {
   major?: string | null; gradTerm?: string | null; headline?: string | null; targetRoles?: readonly string[];

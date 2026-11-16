@@ -13,6 +13,34 @@ export class OpportunityError extends Error {
 }
 export const FETCH_TIMEOUT_MS = 15_000;
 export const MAX_JOBS = 500;
+/** Largest provider response body read into memory. */
+export const MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Parses a provider response as JSON without ever buffering more than `maxBytes`: a declared
+ * Content-Length over the cap is refused up front, and the body stream is cancelled (and the
+ * request aborted) as soon as the running total passes it, whatever the header claimed.
+ */
+export async function readCappedJson(response: Response, maxBytes: number, controller?: AbortController): Promise<unknown> {
+  const declared = Number(response.headers.get("content-length"));
+  const refuse = () => { controller?.abort(); return new Error("Source response too large"); };
+  if (Number.isFinite(declared) && declared > maxBytes) { await response.body?.cancel().catch(() => {}); throw refuse(); }
+  if (!response.body) throw new Error("Invalid source response");
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) { await reader.cancel().catch(() => {}); throw refuse(); }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
 export const FETCH_HOSTS = new Set(["data.usajobs.gov", "boards-api.greenhouse.io", "api.lever.co", "api.eu.lever.co", "api.ashbyhq.com"]);
 const TOKEN = /^[A-Za-z0-9_-]{1,80}$/;
 type Config = Record<string, string>;
@@ -94,7 +122,7 @@ export function sourceRequest(source: SourceRow, env: Record<string, string | un
   return { url, headers };
 }
 
-export interface OpportunityDeps { store: OpportunityStore; fetch?: typeof fetch; now?: () => number; env?: Record<string, string | undefined>; timeoutMs?: number }
+export interface OpportunityDeps { store: OpportunityStore; fetch?: typeof fetch; now?: () => number; env?: Record<string, string | undefined>; timeoutMs?: number; maxResponseBytes?: number }
 export function createOpportunityService(d: OpportunityDeps) {
   const store = d.store, now = d.now ?? Date.now;
   const catalog = async () => {
@@ -119,7 +147,7 @@ export function createOpportunityService(d: OpportunityDeps) {
       const task = async () => {
         const response = await (d.fetch ?? fetch)(url, { headers, redirect: "error", signal: controller.signal });
         if (!response.ok || response.redirected || (response.url && new URL(response.url).href !== url.href)) throw new Error("Source request failed");
-        const json: unknown = await response.json();
+        const json = await readCappedJson(response, d.maxResponseBytes ?? MAX_RESPONSE_BYTES, controller);
         const root = record(json);
         const raw = source.kind === "LEVER" ? json : source.kind === "USAJOBS" ? record(root.SearchResult).SearchResultItems : root.jobs;
         if (!Array.isArray(raw)) throw new Error("Invalid source response");

@@ -7,16 +7,20 @@ export const OPEN_TO_OPTIONS = [
 export const CLAIM_UNIT_OPTIONS = ['USD', 'people', 'hours', 'items'];
 const TERM = /^\d{4}-(0[1-9]|1[0-2])$/;
 
+// Field lists mirror backend talentDirectoryCore.ts buildSponsorCard / buildPublicCard exactly. Keep them in sync.
+export const SPONSOR_CARD_FIELDS = 'your first name and last initial, major, graduation term, headline, what you are open to (internship, co-op, full-time, research), available-from date, target roles, the verified bullets you ticked (in the club’s standard wording, not your custom wording), your certifications (name and provider) and the badges you earned with their verification links';
+export const PUBLIC_CARD_FIELDS = 'your first name and last initial, major, graduation term, target roles and the verified bullets you ticked (in the club’s standard wording, not your custom wording)';
+
 const SHARE_COPY = {
   shareWithSponsors: {
     title: 'Share with sponsors',
-    plain: 'Signed-in club sponsors can find your card in the talent directory and request an intro. They see only your first name and last initial, major, graduation term, target roles and the bullets you include. Your email is shared only if you accept an intro.',
-    confirm: 'Sponsors will be able to see: your first name and last initial, major, graduation term, target roles, and the verified bullets you ticked. They will not see your email, photo, Slack id or level. Pending claims are never shown.',
+    plain: `Signed-in club sponsors can find your card in the talent directory and request an intro. They see ${SPONSOR_CARD_FIELDS}. Your email is shared only if you accept an intro.`,
+    confirm: `Sponsors will be able to see: ${SPONSOR_CARD_FIELDS}. They will not see your email (unless you accept an intro), photo, Slack id or level. Pending claims are never shown.`,
   },
   showOnPublicPage: {
     title: 'Show on the public Impact page',
-    plain: 'Your card appears on the club’s public Impact page, visible to anyone, even without an account. It shows your first name and last initial, major, graduation term, target roles and the bullets you include. Never your email, photo, Slack id or level.',
-    confirm: 'Anyone on the internet will be able to see: your first name and last initial, major, graduation term, target roles, and the verified bullets you ticked. They will not see your email, photo, Slack id or level.',
+    plain: `Your card appears on the club’s public Impact page, visible to anyone, even without an account. It shows ${PUBLIC_CARD_FIELDS}. Never your email, photo, Slack id or level.`,
+    confirm: `Anyone on the internet will be able to see: ${PUBLIC_CARD_FIELDS}. They will not see your headline, certifications, badges, email, photo, Slack id or level.`,
   },
 };
 

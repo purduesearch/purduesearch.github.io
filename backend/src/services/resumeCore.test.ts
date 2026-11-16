@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  buildBullets, buildJsonResume, buildPlainText, JSON_RESUME_SCHEMA,
+  buildBullets, buildJsonResume, buildPlainText, JSON_RESUME_SCHEMA, sharedBullets,
   type AttestationInput, type BulletRowInput, type SnapshotInput,
 } from "./resumeCore.js";
 
@@ -66,6 +66,29 @@ test("member overrides: hide, reorder, custom template valid/invalid", () => {
   assert.equal(b["METRIC:prs_merged"].text, "Shipped 5 PRs");
   const bad = byKey(buildBullets(snaps, [], [{ sourceKind: "METRIC", sourceId: "prs_merged", included: true, position: 0, template: "no placeholder {x}" }], undefined));
   assert.equal(bad["METRIC:prs_merged"].text, "Authored 5 merged pull requests for ARES.");
+});
+
+test("custom templates stay in the member's view; shared bullets use canonical wording", () => {
+  const rows: BulletRowInput[] = [
+    { sourceKind: "METRIC", sourceId: "prs_merged", included: true, position: 0, template: "Merged {n} PRs as lead of a 30-person team" },
+    { sourceKind: "ATTESTATION", sourceId: "v", included: true, position: 0, template: "Raised $50,000 and led 40 engineers ({n} USD verified)" },
+  ];
+  const out = buildBullets(snaps, [claim("v", "VERIFIED", 500)], rows, undefined);
+  const b = byKey(out);
+  // Member's own view (Career view, print route, JSON Resume download) keeps the custom template.
+  assert.equal(b["METRIC:prs_merged"].text, "Merged 5 PRs as lead of a 30-person team");
+  assert.equal(b["ATTESTATION:v"].text, "Raised $50,000 and led 40 engineers (500 USD verified)");
+  assert.equal(b["METRIC:prs_merged"].sharedText, "Authored 5 merged pull requests for ARES.");
+  assert.equal(b["ATTESTATION:v"].sharedText, "Raised funds v: 500 USD");
+  const shared = byKey(sharedBullets(out));
+  assert.equal(shared["METRIC:prs_merged"].text, "Authored 5 merged pull requests for ARES.");
+  assert.equal(shared["ATTESTATION:v"].text, "Raised funds v: 500 USD");
+  const all = JSON.stringify(sharedBullets(out).map(x => x.text));
+  for (const leak of ["30-person", "50,000", "40 engineers"]) assert.ok(!all.includes(leak), leak);
+  // Pending, hidden and unconfirmed bullets are still excluded.
+  assert.equal(shared["METRIC:team_led"], undefined);
+  const r = buildJsonResume({}, { name: "Ada L." }, out, [], []);
+  assert.ok(r.work[0].highlights.includes("Merged 5 PRs as lead of a 30-person team"));
 });
 
 const member = { name: "Ada L.", email: "ada@example.com" };

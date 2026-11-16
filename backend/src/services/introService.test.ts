@@ -27,8 +27,16 @@ function fakeIntroStore(members: FakeMember[], sponsors: SponsorUserRow[]) {
     profile: { major: "ME", gradTerm: m.gradTerm ?? null, openTo: ["INTERNSHIP"], availableFrom: null, headline: null },
     targets: [{ code: "17-2141.00", title: "Mechanical Engineers" }],
     snapshots: [{ metricId: records.id, value: 7, detail: null }],
-    attestations: [{ id: `p-${m.id}`, kind: "CLAIM", status: "PENDING", label: "Pending secret claim", value: 3, unit: "USD" }],
-    bulletRows: [], certifications: [], badges: [], skillNames: m.skills ?? [],
+    attestations: [
+      { id: `p-${m.id}`, kind: "CLAIM", status: "PENDING", label: "Pending secret claim", value: 3, unit: "USD" },
+      { id: `v-${m.id}`, kind: "CLAIM", status: "VERIFIED", label: "Sponsorship raised", value: 500, unit: "USD" },
+    ],
+    // Member custom templates are unreviewed text: they must never reach a sponsor or the accept email.
+    bulletRows: [
+      { sourceKind: "METRIC", sourceId: records.id, included: true, position: 0, template: "Did {n} things as lead of a 30-person team" },
+      { sourceKind: "ATTESTATION", sourceId: `v-${m.id}`, included: true, position: 0, template: "Raised $50,000 and led 40 engineers ({n} USD verified)" },
+    ],
+    certifications: [], badges: [], skillNames: m.skills ?? [],
   });
   const withSponsor = (r: IntroRow) => ({ ...r, sponsor: sponsors.find(s => s.id === r.sponsorUserId)! });
   const store: IntroStore = {
@@ -153,6 +161,9 @@ async function main() {
   check("accept ok + emailed", acc.status === "ACCEPTED" && acc.emailed === true);
   check("accept emails sponsor with member email + shareable bullets only", mails.length === 1 && mails[0].to === "sam@acme.test"
     && mails[0].html.includes("ada@purdue.test") && mails[0].html.includes("7") && !mails[0].html.includes("Pending secret claim"));
+  check("accept email uses canonical wording, never the member's custom template", mails.length === 1
+    && mails[0].html.includes("Sponsorship raised: 500 USD") && !mails[0].html.includes("30-person") && !mails[0].html.includes("50,000")
+    && !mails[0].html.includes("40 engineers"));
   check("second response 409", (await code(svc.respond("m-ada", id, { accept: false }))) === "CONFLICT");
   sl = await svc.sponsorIntros("s1");
   check("member email present after accept", sl.intros[0].status === "ACCEPTED" && (sl.intros[0] as { memberEmail?: string }).memberEmail === "ada@purdue.test");

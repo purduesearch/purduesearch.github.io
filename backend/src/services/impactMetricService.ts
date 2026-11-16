@@ -3,6 +3,7 @@
 import type { Prisma } from "@prisma/client";
 import { METRICS, METRIC_VERSION } from "./impactMetricCore.js";
 import { canonicalMap, projectedDisputes } from "./skillCatalogCore.js";
+import { EXCLUDE_TRAINING } from "./trainingSandboxService.js";
 
 export type ImpactTransaction = Pick<Prisma.TransactionClient,
   "member" | "project" | "projectMember" | "courseEnrollment" | "course" |
@@ -43,6 +44,18 @@ type MetricQuery = (tx: ImpactTransaction, memberId: string, now: Date) => Promi
 const count = (facts: Fact[]): MetricCount => ({ value: new Set(facts.map(f => f.key ?? f.id)).size, facts });
 const compare = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0;
 const unique = (values: string[]) => [...new Set(values)].sort(compare);
+// A member's private training sandbox is a real project they can freely mark DONE.
+// Every project-scoped source excludes it; optional project links keep unlinked rows.
+const NOT_TRAINING = { project: EXCLUDE_TRAINING };
+const UNLINKED_OR_NOT_TRAINING = [{ projectId: null }, { project: EXCLUDE_TRAINING }];
+/** SkillEvidence.projectId has no FK, so the sandbox ids are read and filtered here. */
+async function withoutTraining<T extends { projectId: string | null }>(tx: ImpactTransaction, rows: T[]): Promise<T[]> {
+  const ids = unique(rows.flatMap(r => r.projectId ? [r.projectId] : []));
+  if (!ids.length) return rows;
+  const training = await tx.project.findMany({ where: { id: { in: ids }, trainingForMemberId: { not: null } }, select: { id: true } });
+  const excluded = new Set(training.map(p => p.id));
+  return rows.filter(r => !r.projectId || !excluded.has(r.projectId));
+}
 function earliest(dates: (Date | null | undefined)[]): Date | null {
   const times = dates.filter((d): d is Date => !!d).map(d => d.getTime());
   return times.length ? new Date(times.reduce((a, b) => Math.min(a, b))) : null;
@@ -62,7 +75,7 @@ async function coursesAuthored(tx: ImpactTransaction, memberId: string): Promise
 async function releasedItems(tx: ImpactTransaction, memberId: string, drawing: boolean): Promise<MetricCount> {
   const contribution = { version: { uploadedById: memberId }, changeRequest: { status: "APPROVED" as const } };
   const rows = await tx.vaultItem.findMany({
-    where: { deletedAt: null, ...(drawing ? { drawingForId: { not: null } } : {}), crItems: { some: contribution } },
+    where: { deletedAt: null, ...NOT_TRAINING, ...(drawing ? { drawingForId: { not: null } } : {}), crItems: { some: contribution } },
     select: { id: true, projectId: true, crItems: { where: contribution, select: { changeRequest: { select: { reviewedAt: true } } } } },
   });
   return count(rows.map(r => ({ id: r.id, projectId: r.projectId, at: earliest(r.crItems.map(i => i.changeRequest.reviewedAt)) })));
@@ -72,7 +85,7 @@ async function cadItemsReleased(tx: ImpactTransaction, memberId: string): Promis
 }
 async function cadRevisions(tx: ImpactTransaction, memberId: string): Promise<MetricCount> {
   const rows = await tx.vaultVersion.findMany({
-    where: { uploadedById: memberId, item: { deletedAt: null } },
+    where: { uploadedById: memberId, item: { deletedAt: null, ...NOT_TRAINING } },
     select: { id: true, createdAt: true, item: { select: { projectId: true } } },
   });
   return count(rows.map(r => ({ id: r.id, at: r.createdAt, projectId: r.item.projectId })));
@@ -82,29 +95,29 @@ async function drawingsReleased(tx: ImpactTransaction, memberId: string): Promis
 }
 async function designReviews(tx: ImpactTransaction, memberId: string): Promise<MetricCount> {
   const rows = await tx.changeRequest.findMany({
-    where: { OR: [{ reviewerId: memberId, status: { in: ["APPROVED", "REJECTED"] } }, { signoffs: { some: { memberId } } }] },
+    where: { ...NOT_TRAINING, OR: [{ reviewerId: memberId, status: { in: ["APPROVED", "REJECTED"] } }, { signoffs: { some: { memberId } } }] },
     select: { id: true, projectId: true, reviewerId: true, reviewedAt: true, signoffs: { where: { memberId }, select: { createdAt: true } } },
   });
   return count(rows.map(r => ({ id: r.id, projectId: r.projectId,
     at: earliest([r.reviewerId === memberId ? r.reviewedAt : null, ...r.signoffs.map(s => s.createdAt)]) })));
 }
 async function prsMerged(tx: ImpactTransaction, memberId: string): Promise<MetricCount> {
-  const rows = await tx.skillEvidence.findMany({
+  const rows = await withoutTraining(tx, await tx.skillEvidence.findMany({
     where: { memberId, source: "GITHUB", contribution: "AUTHORED", outcome: "MERGED", supersededAt: null },
     select: { sourceRef: true, occurredAt: true, projectId: true },
-  });
+  }));
   return count(rows.map(r => ({ id: r.sourceRef, at: r.occurredAt, projectId: r.projectId })));
 }
 async function codeReviews(tx: ImpactTransaction, memberId: string): Promise<MetricCount> {
-  const rows = await tx.skillEvidence.findMany({
+  const rows = await withoutTraining(tx, await tx.skillEvidence.findMany({
     where: { memberId, source: "REVIEW", sourceRef: { contains: ":review:" }, supersededAt: null },
     select: { sourceRef: true, occurredAt: true, projectId: true },
-  });
+  }));
   return count(rows.map(r => ({ id: r.sourceRef, at: r.occurredAt, projectId: r.projectId })));
 }
 async function tasksCompleted(tx: ImpactTransaction, memberId: string): Promise<MetricCount> {
   const rows = await tx.task.findMany({
-    where: { status: "DONE", assignees: { some: { id: memberId } } },
+    where: { status: "DONE", assignees: { some: { id: memberId } }, ...NOT_TRAINING },
     select: { id: true, projectId: true, completedAt: true, dueDate: true },
   });
   const withDueDate = rows.filter(r => r.dueDate !== null);
@@ -124,7 +137,7 @@ async function labHours(tx: ImpactTransaction, memberId: string): Promise<Metric
 }
 async function teamLed(tx: ImpactTransaction, memberId: string): Promise<MetricCount> {
   const rows = await tx.projectMember.findMany({
-    where: { memberId, isLead: true },
+    where: { memberId, isLead: true, ...NOT_TRAINING },
     select: { projectId: true, project: { select: { tasks: { select: {
       id: true, status: true, assignees: { where: { id: { not: memberId }, isBot: false }, select: { id: true } },
     } } } } },
@@ -144,14 +157,14 @@ async function teamLed(tx: ImpactTransaction, memberId: string): Promise<MetricC
 }
 async function eventsOrganized(tx: ImpactTransaction, memberId: string, now: Date): Promise<MetricCount> {
   const rows = await tx.event.findMany({
-    where: { organizerId: memberId, type: { not: "DEADLINE" }, startTime: { lt: now } },
+    where: { organizerId: memberId, type: { not: "DEADLINE" }, startTime: { lt: now }, OR: UNLINKED_OR_NOT_TRAINING },
     select: { id: true, projectId: true, startTime: true },
   });
   return count(rows.map(r => ({ id: r.id, at: r.startTime, projectId: r.projectId })));
 }
 async function outreachAttendees(tx: ImpactTransaction, memberId: string): Promise<MetricCount> {
   const rows = await tx.eventRsvp.findMany({
-    where: { attended: true, event: { organizerId: memberId, isPublic: true }, OR: [{ memberId: null }, { member: { isBot: false } }] },
+    where: { attended: true, event: { organizerId: memberId, isPublic: true, OR: UNLINKED_OR_NOT_TRAINING }, OR: [{ memberId: null }, { member: { isBot: false } }] },
     select: { id: true, memberId: true, attendedAt: true, event: { select: { projectId: true } } },
   });
   return { ...count(rows.map(r => ({ id: r.id, at: r.attendedAt, projectId: r.event.projectId }))),
@@ -159,7 +172,7 @@ async function outreachAttendees(tx: ImpactTransaction, memberId: string): Promi
 }
 async function outreachPublished(tx: ImpactTransaction, memberId: string): Promise<MetricCount> {
   const rows = await tx.outreachSubmission.findMany({
-    where: { authorId: memberId, status: "PUBLISHED" }, select: { id: true, publishedAt: true, projectId: true },
+    where: { authorId: memberId, status: "PUBLISHED", OR: UNLINKED_OR_NOT_TRAINING }, select: { id: true, publishedAt: true, projectId: true },
   });
   return count(rows.map(r => ({ id: r.id, at: r.publishedAt, projectId: r.projectId })));
 }
@@ -172,7 +185,7 @@ async function blogPostsPublished(tx: ImpactTransaction, memberId: string): Prom
 }
 async function milestonesDelivered(tx: ImpactTransaction, memberId: string): Promise<MetricCount> {
   const rows = await tx.milestone.findMany({
-    where: { ownerId: memberId, status: "COMPLETED" }, select: { id: true, completedAt: true, projectId: true },
+    where: { ownerId: memberId, status: "COMPLETED", ...NOT_TRAINING }, select: { id: true, completedAt: true, projectId: true },
   });
   return count(rows.map(r => ({ id: r.id, at: r.completedAt, projectId: r.projectId })));
 }

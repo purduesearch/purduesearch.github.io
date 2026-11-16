@@ -37,7 +37,7 @@ machine's temporary directory.
 | 20 | Opportunity service + APIs | done | 3ab2ebc3 | build / backend typecheck / backend test green; root test:ci n/a | 45 service/HTTP checks; pushed. |
 | 21 | Badges backend [deep] | done | this commit | build / backend typecheck / backend test green; root test:ci n/a | 222 checks across 4 files; /api/public/badges above publicRouter; jose 6.2.13. |
 | 22 | Badges frontend | done | this commit | build / test:ci / backend typecheck / backend test green | 13 UI tests; /badges/:id route; CSS v=36. |
-| 23 | Security and privacy review [deep, fresh] | todo | | | |
+| 23 | Security and privacy review [deep, fresh] | done | this commit | build / test:ci / backend typecheck / backend test green | Fresh reviewer: 1 MAJOR + 5 MINOR fixed, 2 NIT recorded. |
 | 24 | Docs | todo | | | |
 | 25 | Manual rollout (Henry) | todo | | | |
 
@@ -496,7 +496,41 @@ the gate from there on.
 - Controller gate: root build passed; test:ci 100 suites / 692 tests passed; backend typecheck passed;
   backend tests 149 files passed.
 
+### Phase 23 — Security and privacy review
+
+- Fresh strongest-setting reviewer `phase_23` (wrote none of Phases 15, 16, 21), read-only. Clean areas
+  confirmed: no model calls; sponsor tokens hashed, 15-minute single-use, separate secret, tokenVersion;
+  login non-enumerating; sessionStorage token; org-scoped postings/intros; intro limit under advisory lock;
+  contact exchange only after accept; IDOR-safe accept; badge identity hashed/salted, jwks without `d`,
+  non-enumerating 404; admin routes behind requireAdmin; `req.memberId` everywhere; data-only crons.
+- Findings and fixes (two fix agents on disjoint files, plus one controller line):
+  1. MAJOR (Phase 10): a member's custom bullet template reached sponsor cards, public cards and the accept
+     email unreviewed, so extra numbers could ride on a verified value (decisions 3, 4). Fixed: `resumeCore`
+     computes `sharedText` (registry template, or `label: value unit` for claims) and `sharedBullets()`;
+     `talentDirectoryCore.pickedBullets` uses it. The member's own view, print and JSON Resume keep the custom
+     wording. Controller pointed `IntroInbox` preview at `sharedText` so it matches what the sponsor gets.
+  2. MINOR (Phase 7): impact metrics counted training sandbox projects. Fixed with `EXCLUDE_TRAINING` on all 12
+     project-scoped metrics (unlinked events/outreach still count; SkillEvidence filtered by project lookup).
+     Existing snapshots stay inflated until the next recompute.
+  3. MINOR (Phase 16): sharing consent copy understated the sponsor card. Copy now lists every field of
+     `buildSponsorCard` / `buildPublicCard` (exported constants, test-asserted).
+  4. MINOR (Phase 17): public tool counts used `showToTeam` and self-claims. Now `isPublic` only and
+     AI_INFERRED / MANAGER_VERIFIED at level ≥ 3.
+  5. MINOR (Phase 17): `/api/public/impact` rebuilt on every request. Now a 10-minute in-process memo with a
+     shared in-flight build (failures not cached). The 5/min signup `rateLimit` was not applied (too strict for
+     page views).
+  6. MINOR (Phase 20): provider bodies uncapped. Now 10 MB cap via Content-Length and streamed read.
+- Controller gate: root build passed; test:ci 692 tests passed; backend typecheck passed; backend tests
+  149 files passed.
+- OPEN: there is no admin API or UI to invite, disable or revoke a `SponsorUser`/`SponsorOrg`; the plan has
+  no phase for it. Phase 25 step 6 ("invite first sponsor users") currently means a direct database insert.
+
 ## Follow-ups
+
+- Intro re-request after decline: only PENDING blocks a repeat, so a sponsor can re-request right after a
+  decline (within the 20 per 7 days budget). Add a cool-down after DECLINED.
+- Intro `opportunityId` is free text (≤64 chars, escaped); verify it names the sponsor org's own posting or drop it.
+- Sponsor admin management (invite, disable, bump tokenVersion) needs routes behind requireAdmin plus UI.
 
 - ResumeBuilder still lists claimed badges with its own client-built LinkedIn URL (no certUrl), so a
   claimed badge has a LinkedIn link in two places. Point ResumeBuilder at the server `linkedInUrl` or drop

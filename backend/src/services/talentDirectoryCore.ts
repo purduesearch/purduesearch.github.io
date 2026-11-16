@@ -5,7 +5,7 @@
 // verified claims). Filters narrow; nothing is scored or ranked. Sort is alphabetical or by graduation term.
 import { ACHIEVEMENTS, METRICS } from "./impactMetricCore.js";
 import {
-  buildBullets, exportable,
+  buildBullets, sharedBullets,
   type AttestationInput, type BulletRowInput, type ResumeBulletOut, type SnapshotInput,
 } from "./resumeCore.js";
 
@@ -63,9 +63,12 @@ export interface PublicCard {
 
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null);
 
-/** The bullets the member picked that may leave their own view; disabled metrics never appear. */
+/**
+ * The bullets the member picked that may leave their own view; disabled metrics never appear. `text` is the
+ * canonical wording (registry template / verified claim), never the member's custom template.
+ */
 export function pickedBullets(src: CardSource, disabledMetrics: ReadonlySet<string> | readonly string[]): ResumeBulletOut[] {
-  return buildBullets(src.snapshots, src.attestations, src.bulletRows, METRICS, disabledMetrics).filter(exportable);
+  return sharedBullets(buildBullets(src.snapshots, src.attestations, src.bulletRows, METRICS, disabledMetrics));
 }
 
 function targetsOf(src: CardSource) {

@@ -53,57 +53,71 @@ const tableNames = ["member", "project", "projectMember", "courseEnrollment", "c
 function fixtures(): Record<string, Row[]> {
   const tables = Object.fromEntries(tableNames.map(t => [t, [] as Row[]]));
   tables.member = [m, a, b, bot];
-  tables.project = [{ id: "p1", name: "ARES" }, { id: "p2", name: "AstroUSA" }, { id: "p3", name: "Empty" }];
+  tables.project = [{ id: "p1", name: "ARES", trainingForMemberId: null }, { id: "p2", name: "AstroUSA", trainingForMemberId: null },
+    { id: "p3", name: "Empty", trainingForMemberId: null }, { id: "sandbox", name: "Training", trainingForMemberId: "m" }];
+  const [p1, p2, p3, sandbox] = tables.project;
+  const projectOf: Record<string, Row> = { p1, p2, p3, sandbox };
   const course = (id: string, createdById = "m", status = "PUBLISHED") => ({ id, createdById, status, publishedAt: OLD });
   tables.course = [course("c1"), course("c2"), course("draft", "m", "DRAFT"), course("other", "a")];
   const enroll = (id: string, member: Row, c: Row, completedAt: Date | null = OLD) => ({ id, memberId: member.id, member, course: c, completedAt });
   tables.courseEnrollment = [enroll("e1", a, tables.course[0]), enroll("e2", a, tables.course[1]), enroll("e3", b, tables.course[0]),
     enroll("self", m, tables.course[0]), enroll("bot", bot, tables.course[0]), enroll("unfinished", a, tables.course[0], null), enroll("other-author", a, tables.course[3])];
   const crItem = (uploadedById = "m", status = "APPROVED") => ({ version: { uploadedById }, changeRequest: { status, reviewedAt: LATER } });
-  const item = (id: string, crItems: Row[], drawingForId: string | null = null, deletedAt: Date | null = null) => ({ id, projectId: "p1", crItems, drawingForId, deletedAt });
+  const item = (id: string, crItems: Row[], drawingForId: string | null = null, deletedAt: Date | null = null, projectId = "p1") =>
+    ({ id, projectId, project: projectOf[projectId], crItems, drawingForId, deletedAt });
   tables.vaultItem = [item("part", [crItem(), crItem()]), item("drawing", [crItem()], "part"), item("deleted", [crItem()], "part", OLD),
-    item("unapproved", [crItem("m", "OPEN")]), item("other-upload", [crItem("a")])];
+    item("unapproved", [crItem("m", "OPEN")]), item("other-upload", [crItem("a")]),
+    item("sandbox-part", [crItem()], null, null, "sandbox"), item("sandbox-drawing", [crItem()], "part", null, "sandbox")];
   const version = (id: string, item: Row, uploadedById = "m") => ({ id, item, uploadedById, createdAt: OLD });
   tables.vaultVersion = [version("v1", tables.vaultItem[0]), version("v2", tables.vaultItem[0]), version("v3", tables.vaultItem[1]),
-    version("deleted-version", tables.vaultItem[2]), version("other-version", tables.vaultItem[0], "a")];
-  const review = (id: string, reviewerId: string, status: string, signed = false) => ({ id, projectId: "p1", reviewerId, status, reviewedAt: LATER,
+    version("deleted-version", tables.vaultItem[2]), version("other-version", tables.vaultItem[0], "a"), version("sandbox-version", tables.vaultItem[5])];
+  const review = (id: string, reviewerId: string, status: string, signed = false, projectId = "p1") => ({ id, projectId, project: projectOf[projectId], reviewerId, status, reviewedAt: LATER,
     signoffs: signed ? [{ memberId: "m", createdAt: OLD }, { memberId: "a", createdAt: LATER }] : [] });
   tables.changeRequest = [review("cr-approved", "m", "APPROVED", true), review("cr-rejected", "m", "REJECTED"), review("cr-signoff", "a", "OPEN", true),
-    review("cr-pending", "m", "OPEN"), review("cr-other", "a", "APPROVED")];
+    review("cr-pending", "m", "OPEN"), review("cr-other", "a", "APPROVED"), review("cr-sandbox", "m", "APPROVED", true, "sandbox")];
   const evidence = (sourceRef: string, patch: Row = {}) => ({ memberId: "m", source: "GITHUB", sourceRef, contribution: "AUTHORED", outcome: "MERGED",
     supersededAt: null, occurredAt: OLD, projectId: "p1", ...patch });
   tables.skillEvidence = [evidence("repo:pr:1"), evidence("repo:pr:1"), evidence("repo:pr:2", { projectId: "deleted-project" }),
     evidence("old", { supersededAt: LATER }), evidence("assisted", { contribution: "ASSISTED" }), evidence("open", { outcome: "NONE" }), evidence("other", { memberId: "a" }),
     evidence("task", { source: "TASK" }), evidence("repo:pr:1:review:1", { source: "REVIEW" }), evidence("repo:pr:1:review:1", { source: "REVIEW" }),
     evidence("repo:pr:2:review:1", { source: "REVIEW", projectId: "p2" }), evidence("vault:signoff:1", { source: "REVIEW" }),
-    evidence("repo:review:old", { source: "REVIEW", supersededAt: LATER }), evidence("repo:review:other", { source: "REVIEW", memberId: "a" })];
-  const task = (id: string, dueDate: Date | null, completedAt: Date | null, patch: Row = {}) => ({ id, status: "DONE", assignees: [m], projectId: "p1", dueDate, completedAt, ...patch });
+    evidence("repo:review:old", { source: "REVIEW", supersededAt: LATER }), evidence("repo:review:other", { source: "REVIEW", memberId: "a" }),
+    evidence("sandbox:pr:1", { projectId: "sandbox" }), evidence("sandbox:pr:1:review:1", { source: "REVIEW", projectId: "sandbox" })];
+  const task = (id: string, dueDate: Date | null, completedAt: Date | null, patch: Row = {}) => ({ id, status: "DONE", assignees: [m], projectId: "p1", project: p1, dueDate, completedAt, ...patch });
   tables.task = [task("on-time", LATER, OLD), task("late", OLD, LATER), task("no-completion-date", LATER, null), task("no-due-date", null, OLD),
-    task("todo", OLD, null, { status: "TODO" }), task("unassigned", OLD, OLD, { assignees: [a] })];
+    task("todo", OLD, null, { status: "TODO" }), task("unassigned", OLD, OLD, { assignees: [a] }),
+    task("sandbox-task", LATER, OLD, { projectId: "sandbox", project: sandbox })];
   tables.projectMember = [
-    { memberId: "m", isLead: true, projectId: "p1", project: { tasks: [
+    { memberId: "m", isLead: true, projectId: "p1", project: { ...p1, tasks: [
       { id: "team1", status: "DONE", assignees: [m, a, bot] }, { id: "team2", status: "DONE", assignees: [a, b] },
       { id: "team3", status: "TODO", assignees: [b] }, { id: "unassigned-team", status: "DONE", assignees: [] },
     ] } },
-    { memberId: "m", isLead: true, projectId: "p2", project: { tasks: [{ id: "other-team", status: "DONE", assignees: [a] }] } },
-    { memberId: "m", isLead: false, projectId: "p3", project: { tasks: [] } },
-    { memberId: "a", isLead: true, projectId: "p3", project: { tasks: [] } },
+    { memberId: "m", isLead: true, projectId: "p2", project: { ...p2, tasks: [{ id: "other-team", status: "DONE", assignees: [a] }] } },
+    { memberId: "m", isLead: false, projectId: "p3", project: { ...p3, tasks: [] } },
+    { memberId: "a", isLead: true, projectId: "p3", project: { ...p3, tasks: [] } },
+    { memberId: "m", isLead: true, projectId: "sandbox", project: { ...sandbox, tasks: [
+      { id: "sandbox-team", status: "DONE", assignees: [a, b, bot] }, { id: "sandbox-team2", status: "DONE", assignees: [{ id: "c", isBot: false }] },
+    ] } },
   ];
   const visit = (id: string, patch: Row = {}) => ({ id, memberId: "m", status: "CLOSED", totalMinutes: 90, checkedInAt: OLD, checkedOutAt: LATER, ...patch });
   tables.labVisit = [visit("lab1"), visit("lab2", { status: "DISCARDED", totalMinutes: 10 }), visit("lab-unconfirmed", { totalMinutes: 0 }),
     visit("lab-open", { status: "OPEN" }), visit("lab-no-checkout", { checkedOutAt: null }), visit("lab-other", { memberId: "a" })];
-  const event = (id: string, patch: Row = {}) => ({ id, organizerId: "m", type: "MEETING", startTime: OLD, projectId: "p1", isPublic: true, ...patch });
-  tables.event = [event("event1"), event("event2", { isPublic: false }), event("deadline", { type: "DEADLINE" }),
-    event("future", { startTime: FUTURE }), event("now", { startTime: NOW }), event("other-event", { organizerId: "a" })];
+  const event = (id: string, patch: Row = {}) => ({ id, organizerId: "m", type: "MEETING", startTime: OLD, projectId: "p1", project: p1, isPublic: true, ...patch });
+  tables.event = [event("event1"), event("event2", { isPublic: false, projectId: null, project: null }), event("deadline", { type: "DEADLINE" }),
+    event("future", { startTime: FUTURE }), event("now", { startTime: NOW }), event("other-event", { organizerId: "a" }),
+    event("sandbox-event", { projectId: "sandbox", project: sandbox })];
   const rsvp = (id: string, member: Row | null, event: Row, attended = true) => ({ id, memberId: member?.id ?? null, member, event, attended, attendedAt: OLD });
   tables.eventRsvp = [rsvp("rsvp-member", a, tables.event[0]), rsvp("rsvp-guest", null, tables.event[0]),
-    rsvp("rsvp-bot", bot, tables.event[0]), rsvp("rsvp-cancelled", b, tables.event[0], false), rsvp("rsvp-private", b, tables.event[1]), rsvp("rsvp-other-organizer", b, tables.event[5])];
-  const outreach = (id: string, patch: Row = {}) => ({ id, authorId: "m", status: "PUBLISHED", publishedAt: OLD, projectId: "p1", ...patch });
-  tables.outreachSubmission = [outreach("outreach"), outreach("outreach-draft", { status: "DRAFT" }), outreach("outreach-other", { authorId: "a" })];
+    rsvp("rsvp-bot", bot, tables.event[0]), rsvp("rsvp-cancelled", b, tables.event[0], false), rsvp("rsvp-private", b, tables.event[1]), rsvp("rsvp-other-organizer", b, tables.event[5]),
+    rsvp("rsvp-sandbox", b, tables.event[6])];
+  const outreach = (id: string, patch: Row = {}) => ({ id, authorId: "m", status: "PUBLISHED", publishedAt: OLD, projectId: "p1", project: p1, ...patch });
+  tables.outreachSubmission = [outreach("outreach"), outreach("outreach-draft", { status: "DRAFT" }), outreach("outreach-other", { authorId: "a" }),
+    outreach("outreach-unlinked", { projectId: null, project: null }), outreach("outreach-sandbox", { projectId: "sandbox", project: sandbox })];
   const blog = (id: string, createdById: string, authorId: string, status = "PUBLISHED") => ({ id, createdById, authors: [{ memberId: authorId }], status, publishedAt: OLD });
   tables.blogPost = [blog("authored-blog", "a", "m"), blog("ghostwritten-for-other", "m", "a"), blog("draft-blog", "m", "m", "DRAFT")];
-  const milestone = (id: string, patch: Row = {}) => ({ id, ownerId: "m", status: "COMPLETED", completedAt: OLD, projectId: "p2", ...patch });
-  tables.milestone = [milestone("milestone"), milestone("open-milestone", { status: "ON_TRACK" }), milestone("other-milestone", { ownerId: "a" })];
+  const milestone = (id: string, patch: Row = {}) => ({ id, ownerId: "m", status: "COMPLETED", completedAt: OLD, projectId: "p2", project: p2, ...patch });
+  tables.milestone = [milestone("milestone"), milestone("open-milestone", { status: "ON_TRACK" }), milestone("other-milestone", { ownerId: "a" }),
+    milestone("sandbox-milestone", { projectId: "sandbox", project: sandbox })];
   return tables;
 }
 
@@ -162,20 +176,20 @@ const metric = async (id: string, db = memory()) => (await computeForMember("m",
 const cases: [string, number, string, Row, number?][] = [
   ["members_trained", 2, "courseEnrollment", { memberId: { not: "m" }, member: { isBot: false }, completedAt: { not: null }, course: { createdById: "m" } }],
   ["courses_authored", 2, "course", { createdById: "m", status: "PUBLISHED" }],
-  ["cad_items_released", 2, "vaultItem", { deletedAt: null, crItems: { some: { version: { uploadedById: "m" }, changeRequest: { status: "APPROVED" } } } }],
-  ["cad_revisions", 3, "vaultVersion", { uploadedById: "m", item: { deletedAt: null } }],
-  ["drawings_released", 1, "vaultItem", { deletedAt: null, drawingForId: { not: null }, crItems: { some: { version: { uploadedById: "m" }, changeRequest: { status: "APPROVED" } } } }, 1],
-  ["design_reviews", 3, "changeRequest", { OR: [{ reviewerId: "m", status: { in: ["APPROVED", "REJECTED"] } }, { signoffs: { some: { memberId: "m" } } }] }],
+  ["cad_items_released", 2, "vaultItem", { deletedAt: null, project: { trainingForMemberId: null }, crItems: { some: { version: { uploadedById: "m" }, changeRequest: { status: "APPROVED" } } } }],
+  ["cad_revisions", 3, "vaultVersion", { uploadedById: "m", item: { deletedAt: null, project: { trainingForMemberId: null } } }],
+  ["drawings_released", 1, "vaultItem", { deletedAt: null, project: { trainingForMemberId: null }, drawingForId: { not: null }, crItems: { some: { version: { uploadedById: "m" }, changeRequest: { status: "APPROVED" } } } }, 1],
+  ["design_reviews", 3, "changeRequest", { project: { trainingForMemberId: null }, OR: [{ reviewerId: "m", status: { in: ["APPROVED", "REJECTED"] } }, { signoffs: { some: { memberId: "m" } } }] }],
   ["prs_merged", 2, "skillEvidence", { memberId: "m", source: "GITHUB", contribution: "AUTHORED", outcome: "MERGED", supersededAt: null }],
   ["code_reviews", 2, "skillEvidence", { memberId: "m", source: "REVIEW", sourceRef: { contains: ":review:" }, supersededAt: null }, 1],
-  ["tasks_completed", 4, "task", { status: "DONE", assignees: { some: { id: "m" } } }],
+  ["tasks_completed", 4, "task", { status: "DONE", assignees: { some: { id: "m" } }, project: { trainingForMemberId: null } }],
   ["lab_hours", 100 / 60, "labVisit", { memberId: "m", status: { in: ["CLOSED", "DISCARDED"] }, totalMinutes: { gt: 0 }, checkedOutAt: { not: null } }],
-  ["team_led", 2, "projectMember", { memberId: "m", isLead: true }],
-  ["events_organized", 2, "event", { organizerId: "m", type: { not: "DEADLINE" }, startTime: { lt: NOW } }],
-  ["outreach_attendees", 2, "eventRsvp", { attended: true, event: { organizerId: "m", isPublic: true }, OR: [{ memberId: null }, { member: { isBot: false } }] }],
-  ["outreach_published", 1, "outreachSubmission", { authorId: "m", status: "PUBLISHED" }],
+  ["team_led", 2, "projectMember", { memberId: "m", isLead: true, project: { trainingForMemberId: null } }],
+  ["events_organized", 2, "event", { organizerId: "m", type: { not: "DEADLINE" }, startTime: { lt: NOW }, OR: [{ projectId: null }, { project: { trainingForMemberId: null } }] }],
+  ["outreach_attendees", 2, "eventRsvp", { attended: true, event: { organizerId: "m", isPublic: true, OR: [{ projectId: null }, { project: { trainingForMemberId: null } }] }, OR: [{ memberId: null }, { member: { isBot: false } }] }],
+  ["outreach_published", 2, "outreachSubmission", { authorId: "m", status: "PUBLISHED", OR: [{ projectId: null }, { project: { trainingForMemberId: null } }] }],
   ["blog_posts_published", 1, "blogPost", { status: "PUBLISHED", authors: { some: { memberId: "m" } } }],
-  ["milestones_delivered", 1, "milestone", { ownerId: "m", status: "COMPLETED" }],
+  ["milestones_delivered", 1, "milestone", { ownerId: "m", status: "COMPLETED", project: { trainingForMemberId: null } }],
 ];
 for (const [id, expected, table, where, queryIndex = 0] of cases) {
   test(`${id} counts only the specified real source rows`, async () => {
@@ -204,6 +218,23 @@ test("snapshot contract: registry order, source IDs, real projects, earliest dat
   assert.equal(db.snapshotRows().length, 16);
 });
 
+test("training sandbox projects never count toward any project-scoped metric or name a project", async () => {
+  const db = memory();
+  const rows = await computeForMember("m", deps(db));
+  for (const row of rows) {
+    assert(!row.sourceRefs.some(ref => ref.startsWith("sandbox")), `${row.metricId} counted a sandbox record`);
+    assert(!row.detail.projects.some(p => p.id === "sandbox"), `${row.metricId} named the sandbox project`);
+  }
+  // Removing the filter would change the counts: the sandbox fixtures are all otherwise eligible.
+  db.tables.project.forEach(p => { p.trainingForMemberId = null; });
+  db.tables.projectMember.forEach(r => { r.project.trainingForMemberId = null; });
+  const unfiltered = await computeForMember("m", deps(db));
+  const value = (list: typeof rows, id: string) => list.find(r => r.metricId === id)!.value;
+  for (const id of ["tasks_completed", "milestones_delivered", "cad_items_released", "drawings_released", "cad_revisions",
+    "design_reviews", "prs_merged", "code_reviews", "events_organized", "outreach_attendees", "outreach_published", "team_led"]) {
+    assert(value(unfiltered, id) > value(rows, id), `${id} fixture does not exercise the training filter`);
+  }
+});
 test("due-date denominator includes completed tasks missing completion date; no due dates yields unknown", async () => {
   const db = memory();
   assert.equal((await metric("tasks_completed", db)).detail.onTimeRate, 1 / 3);
@@ -216,7 +247,7 @@ test("largest led project counts distinct other human assignees and reports its 
   assert.equal(result.detail.breakdown.largestProjectId, "p1");
   const selection = db.calls.find(c => c.table === "projectMember")!.args.select.project.select.tasks.select.assignees;
   assert.deepEqual(selection.where, { id: { not: "m" }, isBot: false });
-  db.tables.projectMember = [{ memberId: "m", isLead: true, projectId: "p3", project: { tasks: [{ id: "bot-only", status: "TODO", assignees: [m, bot] }] } }];
+  db.tables.projectMember = [{ memberId: "m", isLead: true, projectId: "p3", project: { trainingForMemberId: null, tasks: [{ id: "bot-only", status: "TODO", assignees: [m, bot] }] } }];
   const zero = await metric("team_led", db);
   assert.equal(zero.value, 0);
   assert.equal(zero.detail.tasksShipped, 0);

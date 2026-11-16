@@ -2,8 +2,10 @@
 // - Totals come from stored impact snapshots through publicAggregate (floor 3). A total below the floor is
 //   null, never 0. Only active, non-bot members count; per-member values never leave this module.
 // - Only RECORDS metrics are totalled: CONFIRMED/CLAIM metrics need a per-member attestation to be shareable.
-// - Tool counts: members with a demonstrated skill (level >= 3, not disputed, shared publicly or to the team)
-//   linked to a hot O*NET technology; a tool below the floor is omitted.
+// - Tool counts: members with a demonstrated skill (level >= 3 from AI_INFERRED or MANAGER_VERIFIED evidence, not
+//   disputed, and shared publicly via isPublic) linked to a hot O*NET technology; a tool below the floor is omitted.
+//   showToTeam is teammate consent only and never reaches this anonymous page; self-claims and peer endorsements
+//   are not "demonstrated".
 // - Featured cards: buildPublicCard for members with showOnPublicPage only, alphabetical, no ranking.
 // No model calls. All I/O goes through the injected store.
 import { METRICS, METRIC_VERSION, PUBLIC_FLOOR, publicAggregate } from "./impactMetricCore.js";
@@ -11,16 +13,20 @@ import { buildPublicCard, type CardSource, type PublicCard } from "./talentDirec
 import { ONET_ATTRIBUTION } from "./careerService.js";
 
 export const DEMONSTRATED_LEVEL = 3;
+/** Same evidence rule as the opportunity feed: only these provenances count as demonstrated. */
+export const DEMONSTRATED_PROVENANCES = ["AI_INFERRED", "MANAGER_VERIFIED"] as const;
+const isDemonstratedProvenance = (p: string) => (DEMONSTRATED_PROVENANCES as readonly string[]).includes(p);
 
 export interface PublicImpactStore {
   /** Snapshot rows for active (deactivatedAt null), non-bot members only. */
   snapshots(): Promise<{ memberId: string; metricId: string; value: number }[]>;
   disabledMetrics(): Promise<string[]>;
-  /** Active, non-bot members' assessments on canonical active skills. */
-  assessments(): Promise<{ memberId: string; skillId: string; level: number }[]>;
+  /** Active, non-bot members' AI_INFERRED / MANAGER_VERIFIED assessments on canonical active skills. */
+  assessments(): Promise<{ memberId: string; skillId: string; level: number; provenance: string }[]>;
   /** OPEN or UPHELD disputes. */
   disputes(): Promise<{ memberId: string; skillId: string }[]>;
-  visibility(): Promise<{ memberId: string; skillId: string; isPublic: boolean; showToTeam: boolean }[]>;
+  /** Publicly shared (isPublic) skill choices. */
+  visibility(): Promise<{ memberId: string; skillId: string; isPublic: boolean }[]>;
   /** Skill to hot technology links (OnetSoftware.hot = true via SkillOnetLink SOFTWARE). toolKey = exampleNorm. */
   skillTools(): Promise<{ skillId: string; toolKey: string; toolName: string }[]>;
   /** Card sources for active, non-bot members with showOnPublicPage = true. */
@@ -51,10 +57,10 @@ export async function buildPublicImpact(store: PublicImpactStore): Promise<Publi
 
   const key = (m: string, s: string) => `${m}\u0000${s}`;
   const disputed = new Set(disputes.map(d => key(d.memberId, d.skillId)));
-  const shared = new Set(visibility.filter(v => v.isPublic || v.showToTeam).map(v => key(v.memberId, v.skillId)));
+  const shared = new Set(visibility.filter(v => v.isPublic === true).map(v => key(v.memberId, v.skillId)));
   const membersBySkill = new Map<string, Set<string>>();
   for (const a of assessments) {
-    if (a.level < DEMONSTRATED_LEVEL) continue;
+    if (a.level < DEMONSTRATED_LEVEL || !isDemonstratedProvenance(a.provenance)) continue;
     const k = key(a.memberId, a.skillId);
     if (disputed.has(k) || !shared.has(k)) continue;
     if (!membersBySkill.has(a.skillId)) membersBySkill.set(a.skillId, new Set());
@@ -90,12 +96,13 @@ export function getDefaultPublicImpactStore(): Promise<PublicImpactStore> {
         snapshots: () => prisma.impactSnapshot.findMany({ where: { member: active }, select: { memberId: true, metricId: true, value: true } }),
         disabledMetrics: () => cs.disabledMetrics(),
         assessments: () => prisma.skillAssessment.findMany({
-          where: { level: { gte: DEMONSTRATED_LEVEL }, member: active, skill: { status: "ACTIVE", canonicalId: null } },
-          select: { memberId: true, skillId: true, level: true },
+          where: { level: { gte: DEMONSTRATED_LEVEL }, provenance: { in: [...DEMONSTRATED_PROVENANCES] }, member: active,
+            skill: { status: "ACTIVE", canonicalId: null } },
+          select: { memberId: true, skillId: true, level: true, provenance: true },
         }),
         disputes: () => prisma.skillDispute.findMany({ where: { status: { in: ["OPEN", "UPHELD"] } }, select: { memberId: true, skillId: true } }),
         visibility: () => prisma.skillVisibility.findMany({
-          where: { OR: [{ isPublic: true }, { showToTeam: true }] }, select: { memberId: true, skillId: true, isPublic: true, showToTeam: true },
+          where: { isPublic: true }, select: { memberId: true, skillId: true, isPublic: true },
         }),
         async skillTools() {
           const links = await prisma.skillOnetLink.findMany({ where: { kind: "SOFTWARE" }, select: { skillId: true, ref: true } });
@@ -123,6 +130,27 @@ export function getDefaultPublicImpactStore(): Promise<PublicImpactStore> {
   return defaultStoreP;
 }
 
-export async function getPublicImpact(): Promise<PublicImpactPayload> {
-  return buildPublicImpact(await getDefaultPublicImpactStore());
+export const PUBLIC_IMPACT_TTL_MS = 10 * 60_000;
+
+/**
+ * In-process memo for the anonymous GET /api/public/impact: every miss reads several whole tables, so
+ * the payload is computed at most once per TTL, and concurrent misses share one in-flight build.
+ * A failed build is never cached.
+ */
+export function createPublicImpactMemo(load: () => Promise<PublicImpactPayload>, opts: { now?: () => number; ttlMs?: number } = {}) {
+  const now = opts.now ?? Date.now, ttl = opts.ttlMs ?? PUBLIC_IMPACT_TTL_MS;
+  let cached: { at: number; payload: PublicImpactPayload } | null = null;
+  let inflight: Promise<PublicImpactPayload> | null = null;
+  return function get(): Promise<PublicImpactPayload> {
+    if (cached && now() - cached.at < ttl) return Promise.resolve(cached.payload);
+    inflight ??= load().then(payload => { cached = { at: now(), payload }; return payload; })
+      .finally(() => { inflight = null; });
+    return inflight;
+  };
+}
+
+const memoizedPublicImpact = createPublicImpactMemo(async () => buildPublicImpact(await getDefaultPublicImpactStore()));
+
+export function getPublicImpact(): Promise<PublicImpactPayload> {
+  return memoizedPublicImpact();
 }

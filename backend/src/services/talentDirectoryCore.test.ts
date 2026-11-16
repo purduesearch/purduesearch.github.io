@@ -80,6 +80,18 @@ check("member-hidden bullet excluded", hidden.bullets.length === 1 && hidden.bul
 const disabled = buildSponsorCard(src(), { ...opts, disabledMetrics: [records.id] });
 check("disabled metric excluded from bullets and badges", disabled.bullets.length === 1 && disabled.badges.length === 0);
 check("disabled metric excluded from public card", buildPublicCard(src(), { disabledMetrics: [records.id] }).bullets.length === 1);
+// Member custom templates (unreviewed text) never leave the member's view: canonical wording only.
+const custom = src({ bulletRows: [
+  { sourceKind: "METRIC", sourceId: records.id, included: true, position: 0, template: "Merged {n} PRs as lead of a 30-person team" },
+  { sourceKind: "ATTESTATION", sourceId: "c-verified", included: true, position: 0, template: "Raised $50,000 and led 40 engineers ({n} people verified)" },
+] });
+for (const [label, card] of [["sponsor", buildSponsorCard(custom, opts)], ["public", buildPublicCard(custom, opts)]] as const) {
+  const j = JSON.stringify(card);
+  check(`${label} card never shows a custom metric template`, !j.includes("30-person") && !j.includes("Merged 6 PRs"));
+  check(`${label} card never shows a custom claim template`, !j.includes("50,000") && !j.includes("40 engineers"));
+  check(`${label} card uses the claim's verified wording`, card.bullets.includes("Verified claim: 4 people"));
+  check(`${label} card uses the registry wording`, card.bullets.some(b => b.includes("6") && !b.includes("Merged")) && card.bullets.length === 2);
+}
 check("null profile ok", (() => { const c = buildSponsorCard(src({ profile: null }), opts); return c.major === null && c.openTo.length === 0; })());
 
 // Query parsing

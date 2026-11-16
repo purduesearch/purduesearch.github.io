@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import express from "express";
 import type { AddressInfo } from "node:net";
-import { createOpportunityService, refreshOpportunities, sourceRequest, OpportunityError, FETCH_TIMEOUT_MS, MAX_JOBS, type OpportunityStore, type SourceRow, type JobRow, type JobData, type Catalog } from "./opportunityService.js";
+import { createOpportunityService, refreshOpportunities, sourceRequest, OpportunityError, FETCH_TIMEOUT_MS, MAX_JOBS, MAX_RESPONSE_BYTES, type OpportunityStore, type SourceRow, type JobRow, type JobData, type Catalog } from "./opportunityService.js";
 import { createCareerRouter } from "../api/career.js";
 import { createCareerAdminRouter } from "../api/careerAdmin.js";
 import { createSponsorRouter } from "../api/sponsor.js";
@@ -104,6 +104,36 @@ for (const response of [new Response("{}", { status: 302 }), new Response("{}"),
   const svc = createOpportunityService({ store: f.store, timeoutMs: 5, fetch: (async (_url, opts) => { opts?.signal?.addEventListener("abort", () => { aborted = true; }); return new Promise<Response>(() => {}); }) as typeof fetch });
   const r = await svc.fetchSource("source1");
   check("timeout aborts a hanging fetch and preserves listings", () => { assert.equal(r.ok, false); assert.equal(aborted, true); assert.equal(f.calls.publications.length, 0); });
+}
+{
+  check("response cap is 10 MB", () => assert.equal(MAX_RESPONSE_BYTES, 10 * 1024 * 1024));
+  // Declared Content-Length over the cap: refused before any body is read.
+  const f = fixture(); let bodyPulled = false, aborted = false;
+  const declared = new ReadableStream<Uint8Array>({ pull(c) { bodyPulled = true; c.enqueue(new TextEncoder().encode(JSON.stringify({ jobs: [greenhouse()] }))); c.close(); } }, { highWaterMark: 0 });
+  const r = await createOpportunityService({ store: f.store, now, maxResponseBytes: 64, fetch: (async (_u, opts) => {
+    opts?.signal?.addEventListener("abort", () => { aborted = true; });
+    return new Response(declared, { status: 200, headers: { "Content-Length": String(MAX_RESPONSE_BYTES + 1) } });
+  }) as typeof fetch }).fetchSource("source1");
+  check("oversized Content-Length refused with the safe fixed error", () => {
+    assert.equal(r.ok, false); assert.equal(bodyPulled, false); assert.equal(aborted, true);
+    assert.deepEqual(f.calls.errors, ["Source fetch failed; previous listings were kept."]); assert.equal(f.calls.publications.length, 0); assert.equal(f.jobs[0].expiredAt, null);
+  });
+}
+{
+  // No Content-Length, endless body: reading stops just past the cap and the stream is cancelled.
+  const f = fixture(); let pulled = 0, cancelled = false;
+  const endless = new ReadableStream<Uint8Array>({ pull(c) { pulled += 1024; c.enqueue(new Uint8Array(1024).fill(32)); }, cancel() { cancelled = true; } });
+  const r = await createOpportunityService({ store: f.store, now, maxResponseBytes: 8 * 1024, fetch: (async () => new Response(endless, { status: 200 })) as typeof fetch }).fetchSource("source1");
+  check("streamed body over the cap is cancelled and recorded safely", () => {
+    assert.equal(r.ok, false); assert.equal(cancelled, true); assert.ok(pulled <= 12 * 1024, `read ${pulled} bytes`);
+    assert.deepEqual(f.calls.errors, ["Source fetch failed; previous listings were kept."]); assert.equal(f.calls.publications.length, 0);
+  });
+}
+{
+  // A body under the cap still parses through the streamed reader.
+  const body = JSON.stringify({ jobs: [greenhouse()] });
+  const f = fixture(); const r = await createOpportunityService({ store: f.store, now, maxResponseBytes: body.length, fetch: jsonFetch({ jobs: [greenhouse()] }) }).fetchSource("source1");
+  check("body exactly at the cap is accepted", () => assert.equal(r.ok, true));
 }
 {
   const f = fixture(); const r = await createOpportunityService({ store: f.store, fetch: jsonFetch({ jobs: Array.from({ length: 510 }, (_, i) => greenhouse(i + 1)) }) }).fetchSource("source1");

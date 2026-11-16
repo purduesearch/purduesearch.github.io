@@ -12,7 +12,7 @@ const fmt = d => { try { return new Date(d).toLocaleDateString(undefined, { year
 const errText = (e, fallback) => (e?.message && e.message !== 'Unknown error' ? e.message : fallback);
 
 /** Same rule as the backend's exportable(): shareable, not pending, ticked, not hidden. */
-export const sharedBullets = bullets => (bullets || []).filter(b => b.shareable && !b.pending && b.selected && !b.hidden).map(b => b.text);
+export const sharedBullets = bullets => (bullets || []).filter(b => b.shareable && !b.pending && b.selected && !b.hidden).map(b => b.sharedText ?? b.text);
 
 export default function IntroInbox({ bullets = [], onOpenSettings }) {
   const { member } = useClubPmAuth() || {};
